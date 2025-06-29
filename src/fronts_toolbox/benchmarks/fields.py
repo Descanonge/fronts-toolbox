@@ -1,10 +1,26 @@
 """Idealized fields."""
 
-import matplotlib.pyplot as plt
+from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
+import pooch
 from numpy.typing import NDArray
 
 from fronts_toolbox.filters.contextual_median import contextual_median_numpy
+
+if TYPE_CHECKING:
+    from fronts_toolbox.util import XarrayDataset
+
+try:
+    import pooch
+    from pooch import Unzip
+
+    has_pooch = True
+except ImportError:
+    has_pooch = False
 
 rng = np.random.default_rng()
 
@@ -127,3 +143,49 @@ def swap_noise(field: NDArray, n_swap: int | None = None, len_swap: int = 3) -> 
     for a, b in zip(xy_a, xy_b, strict=False):
         out[*a] = out[*b]
     return out
+
+
+if has_pooch:
+    REGISTRY = pooch.create(
+        path=pooch.os_cache("fronts-toolbox"),
+        base_url="doi:10.5281/zenodo.15769617",
+        registry=None,
+    )
+    REGISTRY.load_registry_from_doi()
+
+
+def sample(name: str) -> XarrayDataset:
+    import xarray as xr
+
+    if not has_pooch:
+        raise ImportError(
+            f"Need {pooch} (https://pypi.org/project/pooch/) "
+            "to use download sample datasets."
+        )
+
+    kwargs: dict[str, Any] = {}
+    if name.upper() == "ESA-CCI-C3S":
+        members = [
+            "ESA-CCI-C3S/20220201120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
+            "ESA-CCI-C3S/20220202120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
+            "ESA-CCI-C3S/20220203120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
+        ]
+
+    elif name.upper() == "MODIS":
+        members = [
+            "MODIS/AQUA_MODIS.20250201.L3m.DAY.SST4.sst4.4km.nc",
+            "MODIS/AQUA_MODIS.20250202.L3m.DAY.SST4.sst4.4km.nc",
+            "MODIS/AQUA_MODIS.20250203.L3m.DAY.SST4.sst4.4km.nc",
+        ]
+        kwargs["preprocess"] = lambda ds: ds.assign_coords(
+            time=[datetime.fromisoformat(ds.attrs["time_coverage_start"]).date()]
+        )
+
+    else:
+        datasets = ["MODIS", "ESA-CCI-C3S"]
+        raise KeyError(
+            f"Dataset name {name} is not registered. Must be one of {datasets}"
+        )
+    unpack = Unzip(members=members)
+    files = REGISTRY.fetch("fronts-toolbox-data.zip", processor=unpack)
+    return xr.open_mfdataset(files, **kwargs)
