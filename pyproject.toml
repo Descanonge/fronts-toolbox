@@ -1,0 +1,92 @@
+
+[build-system]
+requires = ['setuptools>=64', 'setuptools-scm>=8']
+build-backend = 'setuptools.build_meta'
+
+[project]
+dynamic = ['version']
+
+name = 'fronts-toolbox'
+authors = [
+    {name='Clément Haëck', email='clement.haeck@locean.ipsl.fr'}
+]
+description = 'Tools to detect fronts'
+
+readme = 'README.md'
+requires-python = '>=3.12'
+classifiers = [
+    'Programming Language :: Python :: 3',
+    'License :: OSI Approved :: MIT License',
+    'Operating System :: OS Independent',
+    'Intended Audience :: Developers',
+    'Intended Audience :: Science/Research',
+    'Topic :: Utilities'
+]
+
+dependencies = [
+    'numpy>=1.24',
+    'numba>=0.57',
+]
+
+[project.optional-dependencies]
+all = [
+    'xarray',
+    'xarray-histogram',
+    'scipy'
+]
+dev = [
+    'ruff',
+    'mypy>=1.5',
+    'pytest>=7.4',
+]
+docs = [
+    'sphinx==8.2.*',
+    'sphinx-book-theme==0.15.*',
+    'nbsphinx>=0.9.2',
+    'matplotlib',
+    'netcdf'
+]
+tests = [
+    'pytest>=7.4'
+]
+
+
+[project.urls]
+'Homepage' = 'https://github.com/Descanonge/fronts-toolbox'
+
+[tool.mypy]
+ignore_missing_imports = true
+exclude = ['^doc/extensions', '^tests']
+
+[tool.ruff]
+line-length = 88
+target-version = 'py312'
+extend-exclude = ['doc/extensions/*.py', 'doc/conf.py', 'tests']
+
+[tool.ruff.lint]
+select = [
+       'E',  # pycodestyle
+       'W',  # pycodestyle
+       'I',  # isort
+       'N',  # pep8-name
+       'B',  # bugbear
+       'G',  # flake8-logging-format
+       'F',  # pyflakes
+       'UP',  #pyupgrade
+       'D',  #pydocstyle
+       'PL', # pylint
+]
+
+ignore = [
+       'E226', # missing whitespace around arithmetic operator
+       'D203', # one blank line before class
+       'D213', # multiline docstring start at 2nd line
+       'D417', # not all parameters need doc
+       'PLR2004', # magic values
+       'PLR0913', # too many arguments
+]
+
+unfixable = ["F401"]
+
+[tool.ruff.lint.pydocstyle]
+convention = 'numpy'
