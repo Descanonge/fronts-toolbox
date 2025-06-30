@@ -17,8 +17,8 @@ However, filters and post-processing functions can be added to
 than the mandatory dependencies (numpy and numba). This means the user can do
 ``from fronts_toolbox.filters import boa_numpy``.
 
-Input types
-===========
+Input types and requirements
+============================
 
 This library aims to provide functions for different types of input arrays:
 
@@ -27,15 +27,21 @@ This library aims to provide functions for different types of input arrays:
 - Xarray,
 - CUDA is not supported, but it could be added without too much hassle.
 
-Beyond numpy, none of the libraries are required, so use lazy-imports inside
-the relevant functions instead of module-wide imports. For instance::
+Beyond numpy and numba, none of the libraries are required. Please use
+lazy-imports inside the relevant functions instead of module-wide imports. For
+instance::
 
     def my_algorithm(...):
         import dask.array as da
 
+This also avoids importing Dask and/or Xarray if unnecessary (they are pretty
+heavy).
+
 For type-checking, you can use :class:`.util.DaskArray`,
 :class:`.util.XarrayArray`, :class:`.util.XarrayDataset` that will safely default
-to None if the corresponding library is not available.
+to None if the corresponding library is not available. You can also use
+:func:`.util.module_available` to check the availability of a module without
+importing it.
 
 A function should be defined for each type of input, suffixed with the library
 name (``_numpy``, ``_dask``, ``_xarray``, ``_cuda``, etc.). A function that can
@@ -49,6 +55,7 @@ help for Xarray to dispatch between Numpy or Dask.
     The mapper will give appropriate an message error if a input type is
     unsupported, or if the needed library is not installed.
 
+
 Numba and generalized functions
 ===============================
 
@@ -61,6 +68,39 @@ Using :external+numba:func:`numba.guvectorize` allows to easily create a
 generalized universal function. This ensures that your computations will be
 properly vectorized and that it deals nicely with broadcasting and type
 conversion.
+
+Note that when using ``guvectorize`` with ``target="parallel"`` and
+``cache=True`` the import is quite slow (see `issue#8085
+<https://github.com/numba/numba/issues/8085>`__). To avoid this, you can use
+:func:`.util.guvectorize_lazy`. This decorator takes all the arguments of
+``guvectorize``, and returns a function that, when called, will compile as
+usual. This defers the faulty cached retrieval until execution. It also lets the
+user change compilation arguments at runtime (to change the target for
+instance), while still using the cache. Here is a small example::
+
+    @guvectorize_lazy(
+        [
+            "signatures..."
+        ],
+        "(x,y)->(x,y)",
+        no_python=True,
+        cache=True,
+        target="parallel",
+    )
+    def _my_function(input_field, output):
+        output = 2*input_field
+
+    def my_algorithm_numpy(
+        input_field: NDArray, gufunc: Mapping | None = None, **kwargs
+    ) -> NDArray:
+        func = _my_function(gufunc)
+        return func(input_field, **kwargs)
+
+In the example above, calling ``my_algorithm_numpy`` will compile with, by
+default, options ``cache=True, target="parallel"``. Subsequent compilations will
+be retrieved from the cache at execution. The user can overwrite compilation
+options with ``my_algorithm_numpy(input, gufunc=dict(target="cpu"))`` for
+instance.
 
 Moving window size
 ==================

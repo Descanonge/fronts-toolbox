@@ -57,9 +57,6 @@ Components
         :math:`B = \sum_k (h_k - g_k)^2`.
 
 
-
-.. _normalization-coefficients:
-
 Normalizing coefficients
 ------------------------
 
