@@ -47,8 +47,8 @@ class FuncMapper:
 
     When a mapper instance is created (for a specific algorithm), each input type is
     associated to an implementation that supports it. No all mappers need to contain an
-    implementation for every possible type. The mapper will give appropriate message
-    errors if a input type is unsupported, or if the needed library is not installed.
+    implementation for every possible type. The mapper will give an appropriate message
+    error if a input type is unsupported, or if the needed library is not installed.
 
     The right implementation is obtained with :meth:`get_func`.
 

@@ -22,6 +22,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
+    "sphinx_design",
 ]
 
 templates_path = ["_templates"]
@@ -58,6 +59,7 @@ napoleon_preprocess_type = False
 intersphinx_mapping = {
     "dask": ("https://docs.dask.org/en/latest", None),
     "numpy": ("https://numpy.org/doc/stable", None),
+    "numba": ("https://numba.readthedocs.io/en/stable", None),
     "python": ("https://docs.python.org/3/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
 }
