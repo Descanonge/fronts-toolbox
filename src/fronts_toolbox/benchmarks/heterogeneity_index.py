@@ -54,56 +54,59 @@ def plot(components: tuple, title: str, input_kw: Mapping | None = None) -> plt.
     return fig
 
 
-## Ideal jet
+if __name__ == "__main__":
+    ## Ideal jet
 
-sst = ideal_jet()
+    sst = ideal_jet()
 
-components = compute_components_numpy(sst, window_size=5)
-coefs = compute_coefficients_components(components)
-coefs["HI"] = compute_coefficient_hi(components, coefs)
-hi = apply_coefficients(components, coefs)
+    components = compute_components_numpy(sst, window_size=5)
+    coefs = compute_coefficients_components(components)
+    coefs["HI"] = compute_coefficient_hi(components, coefs)
+    hi = apply_coefficients(components, coefs)
 
-plot(components, "Ideal jet")
+    plot(components, "Ideal jet")
 
-## Ideal jet with noise
-sst = ideal_jet()
-vmin, vmax = sst.min(), sst.max()
-sst = swap_noise(sst)
-sst = add_spikes(sst)
+    ## Ideal jet with noise
+    sst = ideal_jet()
+    vmin, vmax = sst.min(), sst.max()
+    sst = swap_noise(sst)
+    sst = add_spikes(sst)
 
-components = compute_components_numpy(sst, window_size=5)
-coefs = compute_coefficients_components(components)
-coefs["HI"] = compute_coefficient_hi(components, coefs)
-hi = apply_coefficients(components, coefs)
+    components = compute_components_numpy(sst, window_size=5)
+    coefs = compute_coefficients_components(components)
+    coefs["HI"] = compute_coefficient_hi(components, coefs)
+    hi = apply_coefficients(components, coefs)
 
-plot(components, "Idea jet with noise", input_kw=dict(vmin=vmin, vmax=vmax))
+    plot(components, "Idea jet with noise", input_kw=dict(vmin=vmin, vmax=vmax))
 
-## Sample MODIS
+    ## Sample MODIS
 
-sst = (
-    sample("MODIS")
-    .sst4.isel(time=2)
-    .sel(lat=slice(55, 15), lon=slice(-82, -40))
-    .to_numpy()[::-1]
-)
-components = compute_components_numpy(sst, window_size=5)
-coefs = compute_coefficients_components(components)
-coefs["HI"] = compute_coefficient_hi(components, coefs)
-hi = apply_coefficients(components, coefs)
+    sst = (
+        sample("MODIS")
+        .sst4.isel(time=2)
+        .sel(lat=slice(55, 15), lon=slice(-82, -40))
+        .to_numpy()[::-1]
+    )
+    components = compute_components_numpy(sst, window_size=5)
+    coefs = compute_coefficients_components(components)
+    coefs["HI"] = compute_coefficient_hi(components, coefs)
+    hi = apply_coefficients(components, coefs)
 
-plot(components, "MODIS L3M")
+    plot(components, "MODIS L3M")
 
-## Sample CCI/C3S
+    ## Sample CCI/C3S
 
-sst = (
-    sample("ESA-CCI-C3S")
-    .analysed_sst.isel(time=0)
-    .sel(lat=slice(15, 55), lon=slice(-82, -40))
-    .to_numpy()
-)
-components = compute_components_numpy(sst, window_size=5)
-coefs = compute_coefficients_components(components)
-coefs["HI"] = compute_coefficient_hi(components, coefs)
-hi = apply_coefficients(components, coefs)
+    sst = (
+        sample("ESA-CCI-C3S")
+        .analysed_sst.isel(time=0)
+        .sel(lat=slice(15, 55), lon=slice(-82, -40))
+        .to_numpy()
+    )
+    components = compute_components_numpy(sst, window_size=5)
+    coefs = compute_coefficients_components(components)
+    coefs["HI"] = compute_coefficient_hi(components, coefs)
+    hi = apply_coefficients(components, coefs)
 
-plot(components, "CCI/C3S L4")
+    plot(components, "CCI/C3S L4")
+
+    plt.show()
