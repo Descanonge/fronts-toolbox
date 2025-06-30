@@ -8,9 +8,13 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import numpy as np
 from numba import jit, prange
-from typing_extensions import TypeIs
 
-from fronts_toolbox.util import FuncMapper, get_window_reach, guvectorize_lazy
+from fronts_toolbox.util import (
+    FuncMapper,
+    get_window_reach,
+    guvectorize_lazy,
+    is_dataset,
+)
 
 try:
     import dask.array as da
@@ -669,10 +673,6 @@ def coefficients_components_dask(components: Sequence[da.Array]) -> dict[str, fl
     return coefficients
 
 
-def _is_dataset(x: object) -> TypeIs[xr.Dataset]:
-    return _has_xarray and isinstance(x, xr.Dataset)
-
-
 def coefficients_components_xarray(
     components: xr.Dataset | Sequence[xr.DataArray],
 ) -> dict[str, float]:
@@ -698,7 +698,7 @@ def coefficients_components_xarray(
     coefficients:
         Dictionnary containing coefficients for each component.
     """
-    if _is_dataset(components):
+    if is_dataset(components):
         components = tuple(components[name] for name in COMPONENTS_NAMES)
 
     coefficients = {}
@@ -754,7 +754,7 @@ def coefficients_components(
     coefficients:
         Dictionnary containing coefficients for each component.
     """
-    if _is_dataset(components):
+    if is_dataset(components):
         func = coefficients_components_mapper.get("xarray")
     else:
         func = coefficients_components_mapper.get_func(components[0])
@@ -911,7 +911,7 @@ def coefficient_hi_xarray(
     from xarray_histogram import histogram
     from xarray_histogram.core import get_edges
 
-    if _is_dataset(components):
+    if is_dataset(components):
         components = tuple(components[name] for name in COMPONENTS_NAMES)
 
     coefficients = dict(coefficients)  # make a copy
@@ -982,7 +982,7 @@ def coefficient_hi(
     -------
     Coefficient to normalize the HI with.
     """
-    if _is_dataset(components):
+    if is_dataset(components):
         func = coefficient_hi_mapper.get("xarray")
     else:
         func = coefficient_hi_mapper.get_func(components[0])
@@ -1039,7 +1039,7 @@ def apply_coefficients(
     -------
     Normalized HI (single variable).
     """
-    if _is_dataset(components):
+    if is_dataset(components):
         components = tuple(components[name] for name in COMPONENTS_NAMES)
 
     components_copies = [c.copy() for c in components]

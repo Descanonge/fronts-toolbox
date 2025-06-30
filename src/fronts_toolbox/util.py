@@ -5,10 +5,14 @@ from __future__ import annotations
 import importlib.util
 from collections.abc import Callable, Mapping, Sequence
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numba import guvectorize
+
+if TYPE_CHECKING:
+    import xarray as xr
+    from typing_extensions import TypeIs
 
 
 @lru_cache
@@ -30,6 +34,10 @@ def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
 
     window_reach = list(int(np.floor(w / 2)) for w in window_size)
     return window_reach
+
+
+def is_dataset(x: object) -> TypeIs[xr.Dataset]:
+    return module_available("xarray") and isinstance(x, xr.Dataset)
 
 
 def guvectorize_lazy(*args, **kwargs):
