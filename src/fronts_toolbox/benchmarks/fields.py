@@ -16,8 +16,6 @@ import numpy as np
 import pooch
 from numpy.typing import NDArray
 
-from fronts_toolbox.filters.contextual_median import contextual_median_numpy
-
 if TYPE_CHECKING:
     from fronts_toolbox.util import XarrayDataset
 
