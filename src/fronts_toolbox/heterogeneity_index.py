@@ -1,39 +1,33 @@
-"""Functions for computing the components of the HI.
-
-This modules provides three public functions depending on the type of the input
-field:
-
-- :func:`compute_components_numpy` for Numpy arrays.
-- :func:`compute_components_dask` for Dask arrays. It can handle arrays chunked
-  along any dimensions.
-- :func:`compute_components_xarray` for Xarray DataArrays (this function defers
-  work to one of the two other functions, depending on the inner datatype).
-
-.. rubric:: Window size and reach
-
-Users input the moving window size as the total length in number of pixels. It is
-however useful to work with the number of pixels between the center and the edge.
-We call this value the window "reach". It counts the number of pixels beween the center
-(excluding it) and the border pixel (including it).
-For a window of size 3 will have a reach of 1, a window of size 7 a reach of size 3.
-"""
+"""Heterogeneity Index."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection, Hashable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, TypeVar
+from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import numpy as np
 from numba import guvectorize, jit, prange
+from typing_extensions import TypeIs
 
 from fronts_toolbox.util import FuncMapper, get_window_reach
 
+try:
+    import dask.array as da
+
+    _has_dask = True
+except ImportError:
+    _has_dask = False
+
+try:
+    import xarray as xr
+
+    _has_xarray = True
+except ImportError:
+    _has_xarray = False
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
-
-    # deals with conditionnal import
-    from fronts_toolbox.util import DaskArray, XarrayArray, XarrayDataset
 
 
 logger = logging.getLogger(__name__)
@@ -48,13 +42,16 @@ Used for Xarray input where the *dims* argument is None and *window_size*
 is not a Mapping.
 """
 
+## Components computation
 
-def compute_components_numpy(
+
+def components_numpy(
     input_field: NDArray,
     window_size: int | Sequence[int],
     bins_width: float = 0.1,
     bins_shift: float = 0.0,
     axes: Sequence[int] | None = None,
+    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> tuple[NDArray, NDArray, NDArray]:
     """Compute components from a Numpy array.
@@ -80,6 +77,8 @@ def compute_components_numpy(
     axes:
         Indices of the the y/lat and x/lon axes on which to work. If None (default), the
         last two axes are used.
+    gufunc:
+        Arguments passed to :func:`numba.guvectorize`.
     kwargs:
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
@@ -98,7 +97,10 @@ def compute_components_numpy(
         # (y,x),(c),(w),(),()->(y,x,c)
         kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
-    output = _compute_components(
+    if gufunc is None:
+        gufunc = {}
+    func = _get_compiled_gufunc(**gufunc)
+    output = func(
         input_field,
         list(range(3)),  # dummy argument of size 3, needed to accomadate dask
         window_reach,
@@ -114,14 +116,15 @@ def compute_components_numpy(
     return stdev, skew, bimod
 
 
-def compute_components_dask(
-    input_field: DaskArray,
+def components_dask(
+    input_field: da.Array,
     window_size: int | Sequence[int],
     bins_width: float = 0.1,
     bins_shift: float = 0.0,
     axes: Sequence[int] | None = None,
+    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
-) -> tuple[DaskArray, DaskArray, DaskArray]:
+) -> tuple[da.Array, da.Array, da.Array]:
     """Compute components from Dask array.
 
     Parameters
@@ -145,6 +148,8 @@ def compute_components_dask(
     axes:
         Indices of the the y/lat and x/lon axes on which to work. If None (default), the
         last two axes are used.
+    gufunc:
+        Arguments passed to :func:`numba.guvectorize`.
     kwargs:
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
@@ -159,8 +164,6 @@ def compute_components_dask(
     ValueError: ``bins_width`` cannot be 0.
     TypeError: ``axis`` must be of length 2.
     """
-    import dask.array as da
-
     window_reach_x, window_reach_y = get_window_reach(window_size)
 
     if bins_width == 0.0:
@@ -177,10 +180,14 @@ def compute_components_dask(
         # (y,x),(c),(w),(),()->(y,x,c)
         kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
+    if gufunc is None:
+        gufunc = {}
+    func = _get_compiled_gufunc(**gufunc)
+
     # Do the computation for each chunk separately. All consideration of sharing
     # edges is dealt with by the overlap.
     output = da.map_blocks(
-        _compute_components,  # compiled function
+        func,
         # arguments to the function
         overlap,
         list(range(3)),  # dummy argument of size 3
@@ -205,13 +212,14 @@ def compute_components_dask(
     return stdev, skew, bimod
 
 
-def compute_components_xarray(
-    input_field: XarrayArray,
+def components_xarray(
+    input_field: xr.DataArray,
     window_size: int | Mapping[Hashable, int] | Sequence[int],
     bins_width: float = 0.1,
     bins_shift: float | bool = True,
     dims: Collection[Hashable] | None = None,
-) -> XarrayDataset:
+    gufunc: Mapping[str, Any] | None = None,
+) -> xr.Dataset:
     """Compute components from Xarray data.
 
     Parameters
@@ -243,6 +251,8 @@ def compute_components_xarray(
         If the `window_size` argument is given as a mapping, its keys are used instead.
         If not specified, is taken by module-wide variable :data:`DEFAULT_DIMS`
         which defaults to ``{'lat', 'lon'}``.
+    gufunc:
+        Arguments passed to :func:`numba.guvectorize`.
 
     Returns
     -------
@@ -287,25 +297,26 @@ def compute_components_xarray(
             )
         window_size = {d: size for d, size in zip(dims, window_size, strict=True)}
 
-    return _compute_components_xarray_inner(
-        input_field, window_size, bins_width, bins_shift, dims
+    return _components_xarray_inner(
+        input_field, window_size, bins_width, bins_shift, dims, gufunc
     )
 
 
 components_mapper = FuncMapper(
     "components",
-    numpy=compute_components_numpy,
-    dask=compute_components_dask,
+    numpy=components_numpy,
+    dask=components_dask,
 )
 
 
-def _compute_components_xarray_inner(
-    input_field: XarrayArray,
+def _components_xarray_inner(
+    input_field: xr.DataArray,
     window_size: Mapping[Hashable, int],
     bins_width: float,
     bins_shift: float,
     dims: Collection[Hashable],
-) -> XarrayDataset:
+    gufunc: Mapping[str, Any] | None = None,
+) -> xr.Dataset:
     import xarray as xr
 
     if len(dims) != 2:
@@ -336,6 +347,7 @@ def _compute_components_xarray_inner(
         bins_width=bins_width,
         bins_shift=bins_shift,
         axes=axes,
+        gufunc=gufunc,
     )
 
     # Attribute common to all variable (and also global attributes)
@@ -465,16 +477,6 @@ def _get_components_from_values(
 _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
 
 
-@guvectorize(
-    [
-        "(float32[:, :], intp[:], intp[:], float64, float64, float32[:, :, :])",
-        "(float64[:, :], intp[:], intp[:], float64, float64, float64[:, :, :])",
-    ],
-    "(y,x),(c),(w),(),()->(y,x,c)",
-    nopython=True,
-    target="parallel",
-    cache=True,
-)
 def _compute_components(
     input_image: np.ndarray[tuple[int, ...], _DT],
     dummy: tuple[int, int, int],
@@ -584,3 +586,377 @@ def _compute_components(
             output[target_y, target_x, :] = _get_components_from_values(
                 np.ravel(win_values_filtered), bins_width, bins_shift
             )
+
+
+def _get_compiled_gufunc(cache=True, target="parallel") -> Callable:
+    return guvectorize(
+        [
+            "(float32[:, :], intp[:], intp[:], float64, float64, float32[:, :, :])",
+            "(float64[:, :], intp[:], intp[:], float64, float64, float64[:, :, :])",
+        ],
+        "(y,x),(c),(w),(),()->(y,x,c)",
+        nopython=True,
+        target=target,
+        cache=cache,
+    )(_compute_components)
+
+
+## Normalization
+
+
+def coefficients_components_numpy(components: Sequence[NDArray]) -> dict[str, float]:
+    """Find normalization coefficients for all components.
+
+    Coefficients are defined such that components contribute equally to the
+    final HI variance.
+    This function does not modify components, only returns the coefficients.
+
+    Coefficients are computed over the full range of data contained in input
+    parameter ``components``.
+
+    Parameters
+    ----------
+    components:
+        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
+        default, ``stdev``, ``skew``, ``bimod``).
+
+    Returns
+    -------
+    coefficients:
+        Dictionnary containing coefficients for each component.
+    """
+    coefficients = {}
+    for name, comp in zip(COMPONENTS_NAMES, components, strict=True):
+        std: Any  # silence mypy about std being an array
+        if name == "skew":
+            comp = np.fabs(comp)
+        std = float(np.nanstd(comp))
+        if std < 1e-6:
+            raise ValueError(f"Found standard deviation near 0 for {name}.")
+
+        coefficients[name] = 1.0 / std
+
+    return coefficients
+
+
+def coefficients_components_dask(components: Sequence[da.Array]) -> dict[str, float]:
+    """Find normalization coefficients for all components.
+
+    Coefficients are defined such that components contribute equally to the
+    final HI variance.
+    This function does not modify components, only returns the coefficients.
+
+    Coefficients are computed over the full range of data contained in input
+    parameter ``components``.
+
+    Parameters
+    ----------
+    components:
+        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
+        default, ``stdev``, ``skew``, ``bimod``).
+
+    Returns
+    -------
+    coefficients:
+        Dictionnary containing coefficients for each component.
+    """
+    import dask.array as da
+
+    coefficients = {}
+    for name, comp in zip(COMPONENTS_NAMES, components, strict=True):
+        std: Any  # silence mypy about std being an array
+        if name == "skew":
+            comp = da.fabs(comp)
+        std = float(da.nanstd(comp))
+        if std < 1e-6:
+            raise ValueError(f"Found standard deviation near 0 for {name}.")
+
+        coefficients[name] = 1.0 / std
+
+    return coefficients
+
+
+def _is_dataset(x: object) -> TypeIs[xr.Dataset]:
+    return _has_xarray and isinstance(x, xr.Dataset)
+
+
+def coefficients_components_xarray(
+    components: xr.Dataset | Sequence[xr.DataArray],
+) -> dict[str, float]:
+    """Find normalization coefficients for all components.
+
+    Coefficients are defined such that components contribute equally to the
+    final HI variance.
+    This function does not modify components, only returns the coefficients.
+
+    Coefficients are computed over the full range of data contained in input
+    parameter ``components``.
+
+    Parameters
+    ----------
+    components:
+        Either a :class:`xarray.Dataset` containing the three components, such as
+        returned from :func:`~.components.compute_components_xarray`, or three arrays in
+        the order defined by :data:`~.components.COMPONENTS_NAMES` (by default,
+        ``stdev``, ``skew``, ``bimod``).
+
+    Returns
+    -------
+    coefficients:
+        Dictionnary containing coefficients for each component.
+    """
+    if _is_dataset(components):
+        components = tuple(components[name] for name in COMPONENTS_NAMES)
+
+    coefficients = {}
+    for name, comp in zip(COMPONENTS_NAMES, components, strict=True):
+        std: Any  # silence mypy about std being an array
+        # There is no standard array API for nanstd, we have to check the type
+        if name == "skew":
+            comp = np.fabs(comp)
+        std = float(comp.std())
+        if std < 1e-6:
+            raise ValueError(f"Found standard deviation near 0 for {name}.")
+
+        coefficients[name] = 1.0 / std
+
+    return coefficients
+
+
+def coefficient_hi_numpy(
+    components: Sequence[NDArray],
+    coefficients: Mapping[str, float],
+    quantile_target: float = 0.95,
+    hi_limit: float = 9.5,
+    **kwargs: Any,
+) -> float:
+    """Compute final normalization coefficient for the HI.
+
+    Returns a coefficient to normalize the HI (the sum of the three normalized
+    components) such that 95% of its values are below a limit value of *9.5*.
+    (These are the default values but can be changed with the parameters
+    ``quantile_target`` and ``hi_limit``).
+
+    Parameters
+    ----------
+    components:
+        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
+        default, ``stdev``, ``skew``, ``bimod``).
+    coefficients:
+        Dictionnary of the components normalization coefficients.
+    quantile_target:
+        Fraction of the quantity of HI values that should be below ``hi_limit``
+        once normalized. Should be between 0 and 1.
+    hi_limit:
+        See ``quantile_target``.
+    kwargs:
+        Arguments passed to :func:`numpy.histogram`.
+
+    Returns
+    -------
+    Coefficient to normalize the HI with.
+    """
+    from scipy.stats import rv_histogram
+
+    coefficients = dict(coefficients)  # make a copy
+    coefficients.pop("HI", None)
+
+    # un-normalized HI
+    hi = apply_coefficients(components, coefficients)
+
+    kwargs_defaults: dict[str, Any] = dict(
+        bins=np.linspace(0.0, 80.0, 801), density=False
+    )
+    kwargs = kwargs_defaults | kwargs
+    hist, bins = np.histogram(hi, **kwargs)
+
+    # current HI value at quantile target
+    rhist = rv_histogram((hist, bins), density=kwargs["density"])
+    current_hi = rhist.ppf(quantile_target)
+    coef = hi_limit / current_hi
+
+    return coef
+
+
+def coefficient_hi_dask(
+    components: Sequence[da.Array],
+    coefficients: Mapping[str, float],
+    quantile_target: float = 0.95,
+    hi_limit: float = 9.5,
+    **kwargs: Any,
+) -> float:
+    """Compute final normalization coefficient for the HI.
+
+    Returns a coefficient to normalize the HI (the sum of the three normalized
+    components) such that 95% of its values are below a limit value of *9.5*.
+    (These are the default values but can be changed with the parameters
+    ``quantile_target`` and ``hi_limit``).
+
+    Parameters
+    ----------
+    components:
+        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
+        default, ``stdev``, ``skew``, ``bimod``).
+    coefficients:
+        Dictionnary of the components normalization coefficients.
+    quantile_target:
+        Fraction of the quantity of HI values that should be below ``hi_limit``
+        once normalized. Should be between 0 and 1.
+    hi_limit:
+        See ``quantile_target``.
+    kwargs:
+        Arguments passed to :func:`dask.array.histogram`.
+
+    Returns
+    -------
+    Coefficient to normalize the HI with.
+    """
+    import dask.array as da
+    from scipy.stats import rv_histogram
+
+    coefficients = dict(coefficients)  # make a copy
+    coefficients.pop("HI", None)
+
+    # un-normalized HI
+    hi = apply_coefficients(components, coefficients)
+
+    kwargs_defaults: dict[str, Any] = dict(
+        bins=np.linspace(0.0, 80.0, 801), density=False
+    )
+    kwargs = kwargs_defaults | kwargs
+    hist, bins = da.histogram(hi, **kwargs)
+    hist = hist.compute()
+
+    # current HI value at quantile target
+    rhist = rv_histogram((hist, bins), density=kwargs["density"])
+    current_hi = rhist.ppf(quantile_target)
+    coef = hi_limit / current_hi
+
+    return coef
+
+
+def coefficient_hi_xarray(
+    components: xr.Dataset | Sequence[xr.DataArray],
+    coefficients: Mapping[str, float],
+    quantile_target: float = 0.95,
+    hi_limit: float = 9.5,
+    **kwargs: Any,
+) -> float:
+    """Compute final normalization coefficient for the HI.
+
+    Returns a coefficient to normalize the HI (the sum of the three normalized
+    components) such that 95% of its values are below a limit value of *9.5*.
+    (These are the default values but can be changed with the parameters
+    ``quantile_target`` and ``hi_limit``).
+
+    Parameters
+    ----------
+    components:
+        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
+        default, ``stdev``, ``skew``, ``bimod``).
+    coefficients:
+        Dictionnary of the components normalization coefficients.
+    quantile_target:
+        Fraction of the quantity of HI values that should be below ``hi_limit``
+        once normalized. Should be between 0 and 1.
+    hi_limit:
+        See ``quantile_target``.
+    kwargs:
+        Arguments passed to :func:`xarray_histogram.core.histogram`.
+
+    Returns
+    -------
+    Coefficient to normalize the HI with.
+    """
+    import boost_histogram as bh
+    from scipy.stats import rv_histogram
+    from xarray_histogram import histogram
+    from xarray_histogram.core import get_edges
+
+    if _is_dataset(components):
+        components = tuple(components[name] for name in COMPONENTS_NAMES)
+
+    coefficients = dict(coefficients)  # make a copy
+    coefficients.pop("HI", None)
+
+    # un-normalized HI
+    hi = apply_coefficients(components, coefficients)
+
+    kwargs_defaults: dict[str, Any] = dict(
+        bins=bh.axis.Regular(801, 0.0, 80.0), density=False
+    )
+    kwargs = kwargs_defaults | kwargs
+    hist = histogram(hi, **kwargs)
+    bins = get_edges(hist.HI_bins)
+
+    # current HI value at quantile target
+    rhist = rv_histogram((hist.values, bins), density=kwargs["density"])
+    current_hi = rhist.ppf(quantile_target)
+    coef = hi_limit / current_hi
+
+    return coef
+
+
+@overload
+def apply_coefficients(
+    components: Sequence[NDArray], coefficients: Mapping[str, float]
+) -> NDArray: ...
+
+
+@overload
+def apply_coefficients(
+    components: Sequence[da.Array], coefficients: Mapping[str, float]
+) -> da.Array: ...
+
+
+@overload
+def apply_coefficients(
+    components: xr.Dataset | Sequence[xr.DataArray], coefficients: Mapping[str, float]
+) -> xr.DataArray: ...
+
+
+def apply_coefficients(
+    components: xr.Dataset
+    | Sequence[NDArray]
+    | Sequence[da.Array]
+    | Sequence[xr.DataArray],
+    coefficients: Mapping[str, float],
+) -> xr.DataArray | da.Array | NDArray:
+    """Return Heterogeneity Index computed from un-normalized components.
+
+    Parameters
+    ----------
+    components:
+        Either a :class:`xarray.Dataset` containing the three components, such as
+        returned from :func:`~.components.compute_components_xarray`, or three arrays
+        (from Numpy, Dask, or Xarray) in the order defined by
+        :data:`~.components.COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
+        ``bimod``).
+    coefficients:
+        Dictionnary of the components normalization coefficients.
+        If the coefficient for the HI is present, it will be applied, otherwise it will
+        be taken equal to 1.
+
+    Returns
+    -------
+    Normalized HI (single variable).
+    """
+    if _is_dataset(components):
+        components = tuple(components[name] for name in COMPONENTS_NAMES)
+
+    components_copies = [c.copy() for c in components]
+    comps = dict(zip(COMPONENTS_NAMES, components_copies, strict=True))
+    comps["skew"] = np.fabs(comps["skew"])
+
+    for name in comps.keys():
+        comps[name] *= coefficients[name]
+
+    hi = comps["stdev"] + comps["skew"] + comps["bimod"]
+
+    if "HI" in coefficients:
+        hi *= coefficients["HI"]
+
+    if _has_xarray and isinstance(hi, xr.DataArray):
+        hi = hi.rename("HI")
+
+    return hi
