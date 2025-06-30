@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import numpy as np
 from numba import guvectorize, jit, prange
 
-from fronts_toolbox.util import FuncMapper
+from fronts_toolbox.util import FuncMapper, get_window_reach
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -365,18 +365,6 @@ def _compute_components_xarray_inner(
     )
 
     return ds
-
-
-def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
-    """Return window reach as a list."""
-    if isinstance(window_size, int):
-        window_size = [window_size] * 2
-
-    if any(w % 2 != 1 for w in window_size):
-        raise ValueError(f"Window size must be odd (received {window_size})")
-
-    window_reach = list(int(np.floor(w / 2)) for w in window_size)
-    return window_reach
 
 
 @jit(
