@@ -20,34 +20,46 @@ than the mandatory dependencies (numpy and numba). This means the user can do
 Input types and requirements
 ============================
 
-This library aims to provide functions for different types of input arrays:
+This library aims to facilitate implementing different types of input arrays:
 
 - Numpy,
 - Dask,
 - Xarray,
 - CUDA is not supported, but it could be added without too much hassle.
 
-Beyond numpy and numba, none of the libraries are required. Please use
-lazy-imports inside the relevant functions instead of module-wide imports. For
-instance::
+Beyond numpy and numba, none of those libraries are required. As much
+functionality as possible should be made available even if optional dependencies
+are not installed. You can use lazy imports inside functions::
 
     def my_algorithm(...):
         import dask.array as da
+        ...
 
-This also avoids importing Dask and/or Xarray if unnecessary (they are pretty
-heavy).
+You can also check for availability without importing by using
+:func:`.util.module_available`; this is a very lightweight check. Finally you
+can safeguard imports behind a try-except block. This can simplify things a bit,
+however this imports available packages even if they are not needed by the user.
+That can lengthen the import time quite a bit in the case of Dask and Xarray.
 
-For type-checking, you can use :class:`.util.DaskArray`,
-:class:`.util.XarrayArray`, :class:`.util.XarrayDataset` that will safely default
-to None if the corresponding library is not available. You can also use
-:func:`.util.module_available` to check the availability of a module without
-importing it.
+.. important::
 
-A function should be defined for each type of input, suffixed with the library
-name (``_numpy``, ``_dask``, ``_xarray``, ``_cuda``, etc.). A function that can
-handle any input can also be defined. To help with dispatching the input to the
-correct function, you can define a :class:`.util.FuncMapper`. Note it can also
-help for Xarray to dispatch between Numpy or Dask.
+   All additional packages (required or optional) must be indicated in the
+   'tests' optional dependencies in ``pyproject.toml``.
+
+A function may be defined for each type of input, suffixed with the library name
+(``_numpy``, ``_dask``, ``_xarray``, ``_cuda``, etc.). A function that can
+handle any input can also be defined (not obligatory). To help with dispatching
+the input to the correct function, you can define a :class:`.util.Dispatcher`::
+
+    my_dispatcher = Dispatcher(
+        "algorithm name (for error messages)",
+        numpy=my_algorithm_numpy,
+        xarray=my_algorithm_xarray,
+    )
+
+    def my_algorithm(input_field: NDArray | xr.DataArray):
+        func = my_dispatcher.get_func(input_field)
+        return func(input_field)
 
 .. note::
 
@@ -150,9 +162,9 @@ implementation details. The goal is to make the method understable, reasonably
 easy to use, but also modifyable by savvy users. If applicable, the
 documentation must contain a list of reference(s) with DOI links.
 
-Concerning additional package requirements, they must be added in the 'tests'
-optional dependencies in ``pyproject.toml``. They must also be clearly specified
-in a section of the documentation page.
+A "Requirements" section should indicate what packages are required, and for
+what specific features if applicable. The introduction should indicate what
+input types are supported.
 
 The code itself should be properly documented as well. The module must be added
 in the toctree of ``doc/api.rst``. Numpy docstring style is preferred. Type
