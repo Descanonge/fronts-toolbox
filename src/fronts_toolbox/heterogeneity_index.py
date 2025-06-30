@@ -10,7 +10,7 @@ import numpy as np
 from numba import jit, prange
 
 from fronts_toolbox.util import (
-    FuncMapper,
+    Dispatcher,
     get_window_reach,
     guvectorize_lazy,
     is_dataarray,
@@ -78,8 +78,7 @@ def components_numpy(
 
     Returns
     -------
-    components:
-        Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
+    Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
     """
     window_reach = get_window_reach(window_size)
 
@@ -147,8 +146,7 @@ def components_dask(
 
     Returns
     -------
-    components:
-        Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
+    Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
 
     Raises
     ------
@@ -215,7 +213,7 @@ def components_xarray(
 
     Parameters
     ----------
-    input_field:
+    input_field: xarray.DataArray
         Array of the input field from which to compute the heterogeneity index.
     window_size:
         Total size of the moving window, in pixels. If a single integer, the size is
@@ -409,9 +407,8 @@ def _get_components_from_values(
 
     Returns
     -------
-    components:
-        Tuple of the three components (scalar values): standard deviation,
-        skewness, and bimodality. In this order.
+    Tuple of the three components (scalar values): standard deviation,
+    skewness, and bimodality. In this order.
     """
     avg = np.mean(values)
     n_values = values.size
@@ -604,9 +601,8 @@ def coefficients_components_numpy(components: Sequence[NDArray]) -> dict[str, fl
 
     Parameters
     ----------
-    components:
-        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
-        default, ``stdev``, ``skew``, ``bimod``).
+    Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
+    default, ``stdev``, ``skew``, ``bimod``).
 
     Returns
     -------
@@ -639,9 +635,8 @@ def coefficients_components_dask(components: Sequence[DaskArray]) -> dict[str, f
 
     Parameters
     ----------
-    components:
-        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
-        default, ``stdev``, ``skew``, ``bimod``).
+    Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
+    default, ``stdev``, ``skew``, ``bimod``).
 
     Returns
     -------
@@ -686,8 +681,7 @@ def coefficients_components_xarray(
 
     Returns
     -------
-    coefficients:
-        Dictionnary containing coefficients for each component.
+    Dictionnary containing coefficients for each component.
     """
     if is_dataset(components):
         components = tuple(components[name] for name in COMPONENTS_NAMES)
@@ -716,10 +710,7 @@ coefficients_components_mapper = FuncMapper(
 
 
 def coefficients_components(
-    components: xr.Dataset
-    | Sequence[xr.DataArray]
-    | Sequence[da.Array]
-    | Sequence[NDArray],
+    components: Dataset | Sequence[DataArray] | Sequence[DaskArray] | Sequence[NDArray],
 ) -> dict[str, float]:
     """Find normalization coefficients for all components.
 
@@ -742,8 +733,7 @@ def coefficients_components(
 
     Returns
     -------
-    coefficients:
-        Dictionnary containing coefficients for each component.
+    Dictionnary containing coefficients for each component.
     """
     if is_dataset(components):
         func = coefficients_components_mapper.get("xarray")
