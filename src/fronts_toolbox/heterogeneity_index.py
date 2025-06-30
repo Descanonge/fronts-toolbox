@@ -16,22 +16,10 @@ from fronts_toolbox.util import (
     is_dataset,
 )
 
-try:
-    import dask.array as da
-
-    _has_dask = True
-except ImportError:
-    _has_dask = False
-
-try:
-    import xarray as xr
-
-    _has_xarray = True
-except ImportError:
-    _has_xarray = False
-
 if TYPE_CHECKING:
+    from dask.array import Array as DaskArray
     from numpy.typing import NDArray
+    from xarray import DataArray, Dataset
 
 
 logger = logging.getLogger(__name__)
@@ -119,19 +107,19 @@ def components_numpy(
 
 
 def components_dask(
-    input_field: da.Array,
+    input_field: DaskArray,
     window_size: int | Sequence[int],
     bins_width: float = 0.1,
     bins_shift: float = 0.0,
     axes: Sequence[int] | None = None,
     gufunc: Mapping[str, Any] | None = None,
     **kwargs,
-) -> tuple[da.Array, da.Array, da.Array]:
+) -> tuple[DaskArray, DaskArray, DaskArray]:
     """Compute components from Dask array.
 
     Parameters
     ----------
-    input_field:
+    input_field: dask.array.Array
         Array of the input field from which to compute the heterogeneity index.
     window_size:
         Total size of the moving window, in pixels. If an integer, the size is taken
@@ -166,6 +154,8 @@ def components_dask(
     ValueError: ``bins_width`` cannot be 0.
     TypeError: ``axis`` must be of length 2.
     """
+    import dask.array as da
+
     window_reach_x, window_reach_y = get_window_reach(window_size)
 
     if bins_width == 0.0:
@@ -213,13 +203,13 @@ def components_dask(
 
 
 def components_xarray(
-    input_field: xr.DataArray,
+    input_field: DataArray,
     window_size: int | Mapping[Hashable, int] | Sequence[int],
     bins_width: float = 0.1,
     bins_shift: float | bool = True,
     dims: Collection[Hashable] | None = None,
     gufunc: Mapping[str, Any] | None = None,
-) -> xr.Dataset:
+) -> Dataset:
     """Compute components from Xarray data.
 
     Parameters
@@ -310,13 +300,13 @@ components_mapper = FuncMapper(
 
 
 def _components_xarray_inner(
-    input_field: xr.DataArray,
+    input_field: DataArray,
     window_size: Mapping[Hashable, int],
     bins_width: float,
     bins_shift: float,
     dims: Collection[Hashable],
     gufunc: Mapping[str, Any] | None = None,
-) -> xr.Dataset:
+) -> Dataset:
     import xarray as xr
 
     if len(dims) != 2:
@@ -636,7 +626,7 @@ def coefficients_components_numpy(components: Sequence[NDArray]) -> dict[str, fl
     return coefficients
 
 
-def coefficients_components_dask(components: Sequence[da.Array]) -> dict[str, float]:
+def coefficients_components_dask(components: Sequence[DaskArray]) -> dict[str, float]:
     """Find normalization coefficients for all components.
 
     Coefficients are defined such that components contribute equally to the
@@ -674,7 +664,7 @@ def coefficients_components_dask(components: Sequence[da.Array]) -> dict[str, fl
 
 
 def coefficients_components_xarray(
-    components: xr.Dataset | Sequence[xr.DataArray],
+    components: Dataset | Sequence[DataArray],
 ) -> dict[str, float]:
     """Find normalization coefficients for all components.
 
@@ -817,7 +807,7 @@ def coefficient_hi_numpy(
 
 
 def coefficient_hi_dask(
-    components: Sequence[da.Array],
+    components: Sequence[DaskArray],
     coefficients: Mapping[str, float],
     quantile_target: float = 0.95,
     hi_limit: float = 9.5,
@@ -874,7 +864,7 @@ def coefficient_hi_dask(
 
 
 def coefficient_hi_xarray(
-    components: xr.Dataset | Sequence[xr.DataArray],
+    components: Dataset | Sequence[DataArray],
     coefficients: Mapping[str, float],
     quantile_target: float = 0.95,
     hi_limit: float = 9.5,
@@ -944,10 +934,7 @@ coefficient_hi_mapper = FuncMapper(
 
 
 def coefficient_hi(
-    components: xr.Dataset
-    | Sequence[xr.DataArray]
-    | Sequence[da.Array]
-    | Sequence[NDArray],
+    components: Dataset | Sequence[DataArray] | Sequence[DaskArray] | Sequence[NDArray],
     coefficients: Mapping[str, float],
     quantile_target: float = 0.95,
     hi_limit: float = 9.5,
@@ -1003,23 +990,20 @@ def apply_coefficients(
 
 @overload
 def apply_coefficients(
-    components: Sequence[da.Array], coefficients: Mapping[str, float]
-) -> da.Array: ...
+    components: Sequence[DaskArray], coefficients: Mapping[str, float]
+) -> DaskArray: ...
 
 
 @overload
 def apply_coefficients(
-    components: xr.Dataset | Sequence[xr.DataArray], coefficients: Mapping[str, float]
-) -> xr.DataArray: ...
+    components: Dataset | Sequence[DataArray], coefficients: Mapping[str, float]
+) -> DataArray: ...
 
 
 def apply_coefficients(
-    components: xr.Dataset
-    | Sequence[NDArray]
-    | Sequence[da.Array]
-    | Sequence[xr.DataArray],
+    components: Dataset | Sequence[NDArray] | Sequence[DaskArray] | Sequence[DataArray],
     coefficients: Mapping[str, float],
-) -> xr.DataArray | da.Array | NDArray:
+) -> DataArray | DaskArray | NDArray:
     """Return Heterogeneity Index computed from un-normalized components.
 
     Parameters
