@@ -291,7 +291,7 @@ def components_xarray(
     )
 
 
-components_mapper = FuncMapper(
+components_dispatcher = Dispatcher(
     "components",
     numpy=components_numpy,
     dask=components_dask,
@@ -328,7 +328,7 @@ def _components_xarray_inner(
     # and cannot be dealt with only with dask.apply_gufunc (which is what
     # apply_ufunc does).
 
-    func = components_mapper.get_func(input_field.data)
+    func = components_dispatcher.get_func(input_field.data)
     # output is a tuple of array (either numpy or dask)
     output = func(
         input_field.data,
@@ -701,8 +701,8 @@ def coefficients_components_xarray(
     return coefficients
 
 
-coefficients_components_mapper = FuncMapper(
-    name="coefficients_components",
+coefficients_components_dispatcher = Dispatcher(
+    "coefficients_components",
     numpy=coefficients_components_numpy,
     dask=coefficients_components_dask,
     xarray=coefficients_components_xarray,
@@ -736,9 +736,9 @@ def coefficients_components(
     Dictionnary containing coefficients for each component.
     """
     if is_dataset(components):
-        func = coefficients_components_mapper.get("xarray")
+        func = coefficients_components_dispatcher.get("xarray")
     else:
-        func = coefficients_components_mapper.get_func(components[0])
+        func = coefficients_components_dispatcher.get_func(components[0])
     return func(components)
 
 
@@ -916,8 +916,8 @@ def coefficient_hi_xarray(
     return coef
 
 
-coefficient_hi_mapper = FuncMapper(
-    name="coefficients_hi",
+coefficient_hi_dispatcher = Dispatcher(
+    "coefficients_hi",
     numpy=coefficient_hi_numpy,
     dask=coefficient_hi_dask,
     xarray=coefficient_hi_xarray,
@@ -961,9 +961,9 @@ def coefficient_hi(
     Coefficient to normalize the HI with.
     """
     if is_dataset(components):
-        func = coefficient_hi_mapper.get("xarray")
+        func = coefficient_hi_dispatcher.get("xarray")
     else:
-        func = coefficient_hi_mapper.get_func(components[0])
+        func = coefficient_hi_dispatcher.get_func(components[0])
     return func(
         components,
         coefficients,

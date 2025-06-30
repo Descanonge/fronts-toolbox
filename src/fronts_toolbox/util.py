@@ -81,7 +81,7 @@ def guvectorize_lazy(*args, **kwargs):
     return decorator
 
 
-class FuncMapper:
+class Dispatcher:
     """Choose a function depending on input type.
 
     When a mapper instance is created (for a specific algorithm), each input type is
