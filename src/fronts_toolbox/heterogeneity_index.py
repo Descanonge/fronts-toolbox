@@ -714,6 +714,51 @@ def coefficients_components_xarray(
     return coefficients
 
 
+coefficients_components_mapper = FuncMapper(
+    name="coefficients_components",
+    numpy=coefficients_components_numpy,
+    dask=coefficients_components_dask,
+    xarray=coefficients_components_xarray,
+)
+
+
+def coefficients_components(
+    components: xr.Dataset
+    | Sequence[xr.DataArray]
+    | Sequence[da.Array]
+    | Sequence[NDArray],
+) -> dict[str, float]:
+    """Find normalization coefficients for all components.
+
+    Coefficients are defined such that components contribute equally to the
+    final HI variance.
+    This function does not modify components, only returns the coefficients.
+
+    Coefficients are computed over the full range of data contained in input
+    parameter ``components``.
+
+
+    Parameters
+    ----------
+    components:
+        Either a :class:`xarray.Dataset` containing the three components, such as
+        returned from :func:`~.components.compute_components_xarray`, or three arrays
+        (from Numpy, Dask, or Xarray) in the order defined by
+        :data:`~.components.COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
+        ``bimod``).
+
+    Returns
+    -------
+    coefficients:
+        Dictionnary containing coefficients for each component.
+    """
+    if _is_dataset(components):
+        func = coefficients_components_mapper.get("xarray")
+    else:
+        func = coefficients_components_mapper.get_func(components[0])
+    return func(components)
+
+
 def coefficient_hi_numpy(
     components: Sequence[NDArray],
     coefficients: Mapping[str, float],
@@ -886,6 +931,66 @@ def coefficient_hi_xarray(
     coef = hi_limit / current_hi
 
     return coef
+
+
+coefficient_hi_mapper = FuncMapper(
+    name="coefficients_hi",
+    numpy=coefficient_hi_numpy,
+    dask=coefficient_hi_dask,
+    xarray=coefficient_hi_xarray,
+)
+
+
+def coefficient_hi(
+    components: xr.Dataset
+    | Sequence[xr.DataArray]
+    | Sequence[da.Array]
+    | Sequence[NDArray],
+    coefficients: Mapping[str, float],
+    quantile_target: float = 0.95,
+    hi_limit: float = 9.5,
+    **kwargs: Any,
+) -> float:
+    """Compute final normalization coefficient for the HI.
+
+    Returns a coefficient to normalize the HI (the sum of the three normalized
+    components) such that 95% of its values are below a limit value of *9.5*.
+    (These are the default values but can be changed with the parameters
+    ``quantile_target`` and ``hi_limit``).
+
+    Parameters
+    ----------
+    components:
+        Either a :class:`xarray.Dataset` containing the three components, such as
+        returned from :func:`~.components.compute_components_xarray`, or three arrays
+        (from Numpy, Dask, or Xarray) in the order defined by
+        :data:`~.components.COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
+        ``bimod``).
+    coefficients:
+        Dictionnary of the components normalization coefficients.
+    quantile_target:
+        Fraction of the quantity of HI values that should be below ``hi_limit``
+        once normalized. Should be between 0 and 1.
+    hi_limit:
+        See ``quantile_target``.
+    kwargs:
+        Arguments passed to :func:`xarray_histogram.core.histogram`.
+
+    Returns
+    -------
+    Coefficient to normalize the HI with.
+    """
+    if _is_dataset(components):
+        func = coefficient_hi_mapper.get("xarray")
+    else:
+        func = coefficient_hi_mapper.get_func(components[0])
+    return func(
+        components,
+        coefficients,
+        quantile_target=quantile_target,
+        hi_limit=hi_limit,
+        **kwargs,
+    )
 
 
 @overload
