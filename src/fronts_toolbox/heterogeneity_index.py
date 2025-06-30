@@ -13,6 +13,7 @@ from fronts_toolbox.util import (
     FuncMapper,
     get_window_reach,
     guvectorize_lazy,
+    is_dataarray,
     is_dataset,
 )
 
@@ -1038,7 +1039,7 @@ def apply_coefficients(
     if "HI" in coefficients:
         hi *= coefficients["HI"]
 
-    if _has_xarray and isinstance(hi, xr.DataArray):
+    if is_dataarray(hi):
         hi = hi.rename("HI")
 
     return hi

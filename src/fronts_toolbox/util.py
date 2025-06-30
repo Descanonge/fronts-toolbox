@@ -11,8 +11,9 @@ import numpy as np
 from numba import guvectorize
 
 if TYPE_CHECKING:
-    import xarray as xr
+    from dask.array import Array as DaskArray
     from typing_extensions import TypeIs
+    from xarray import DataArray, Dataset
 
 
 @lru_cache
@@ -36,8 +37,28 @@ def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
     return window_reach
 
 
-def is_dataset(x: object) -> TypeIs[xr.Dataset]:
-    return module_available("xarray") and isinstance(x, xr.Dataset)
+def is_dataset(x: object) -> TypeIs[Dataset]:
+    if module_available("xarray"):
+        import xarray as xr
+
+        return isinstance(x, xr.Dataset)
+    return False
+
+
+def is_dataarray(x: object) -> TypeIs[DataArray]:
+    if module_available("xarray"):
+        import xarray as xr
+
+        return isinstance(x, xr.DataArray)
+    return False
+
+
+def is_daskarray(x: object) -> TypeIs[DaskArray]:
+    if module_available("dask"):
+        import dask.array as da
+
+        return isinstance(x, da.Array)
+    return False
 
 
 def guvectorize_lazy(*args, **kwargs):
