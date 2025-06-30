@@ -2,32 +2,21 @@
 
 from __future__ import annotations
 
+import importlib.util
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
+from functools import lru_cache
+from typing import Any
 
 import numpy as np
 
-try:
-    import dask.array as da
 
-    has_dask = True
-except ImportError:
-    has_dask = False
+@lru_cache
+def module_available(module: str) -> bool:
+    """Check whether a module is installed without importing it.
 
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
-
-    try:
-        import dask.array.Array as DaskArray
-    except ImportError:
-        DaskArray: Any = NDArray  # type: ignore[no-redef]
-
-    try:
-        import xarray.DataArray as XarrayArray
-        import xarray.Dataset as XarrayDataset
-    except ImportError:
-        XarrayArray: Any = NDArray  # type: ignore[no-redef]
-        XarrayDataset = Any  # type: ignore[no-redef]
+    Use this for a lightweight check and lazy imports.
+    """
+    return importlib.util.find_spec(module) is not None
 
 
 def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
@@ -64,10 +53,16 @@ class FuncMapper:
     """
 
     def __init__(
-        self, name: str, numpy: Callable | None = None, dask: Callable | None = None
+        self,
+        name: str,
+        numpy: Callable | None = None,
+        dask: Callable | None = None,
+        xarray: Callable | None = None,
     ):
         self.name = name
-        self.functions: dict[str, Callable | None] = dict(numpy=numpy, dask=dask)
+        self.functions: dict[str, Callable | None] = dict(
+            numpy=numpy, dask=dask, xarray=xarray
+        )
 
     def get(self, kind: str) -> Callable:
         """Return a func or raise error if no implementation is registered."""
@@ -81,11 +76,21 @@ class FuncMapper:
 
     def get_func(self, array: Any) -> Callable:
         """Return implementation for a specific input object."""
-        if has_dask and isinstance(array, da.Array):
-            return self.get("dask")
-
+        # check numpy first. it is always imported and thus lightweight
         if isinstance(array, np.ndarray):
             return self.get("numpy")
+
+        if module_available("dask"):
+            import dask.array as da
+
+            if isinstance(array, da.Array):
+                return self.get("dask")
+
+        if module_available("xarray"):
+            import xarray as xr
+
+            if isinstance(array, xr.DataArray | xr.Dataset):
+                return self.get("xarray")
 
         raise NotImplementedError(
             f"{self.name} has not implementation for '{type(array)}' input,"

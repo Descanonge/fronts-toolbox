@@ -86,6 +86,7 @@ ignore = [
        'D417', # not all parameters need doc
        'PLR2004', # magic values
        'PLR0913', # too many arguments
+       'PLC0415', # import not top of the file
 ]
 
 unfixable = ["F401"]
