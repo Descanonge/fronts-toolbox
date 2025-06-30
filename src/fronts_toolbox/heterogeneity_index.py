@@ -704,7 +704,7 @@ def coefficients_components_xarray(
         std: Any  # silence mypy about std being an array
         # There is no standard array API for nanstd, we have to check the type
         if name == "skew":
-            comp = np.fabs(comp)
+            comp = np.fabs(comp)  # type: ignore[assignment]
         std = float(comp.std())
         if std < 1e-6:
             raise ValueError(f"Found standard deviation near 0 for {name}.")

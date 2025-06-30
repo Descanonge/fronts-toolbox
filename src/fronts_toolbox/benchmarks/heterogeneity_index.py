@@ -7,14 +7,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from fronts_toolbox.benchmarks.fields import add_spikes, ideal_jet, sample, swap_noise
-from fronts_toolbox.heterogeneity_index.components import (
+from fronts_toolbox.heterogeneity_index import (
     COMPONENTS_NAMES,
-    compute_components_numpy,
-)
-from fronts_toolbox.heterogeneity_index.normalization import (
     apply_coefficients,
-    compute_coefficient_hi,
-    compute_coefficients_components,
+    coefficient_hi,
+    coefficients_components,
+    components_numpy,
 )
 
 
@@ -59,9 +57,9 @@ if __name__ == "__main__":
 
     sst = ideal_jet()
 
-    components = compute_components_numpy(sst, window_size=5)
-    coefs = compute_coefficients_components(components)
-    coefs["HI"] = compute_coefficient_hi(components, coefs)
+    components = components_numpy(sst, window_size=5)
+    coefs = coefficients_components(components)
+    coefs["HI"] = coefficient_hi(components, coefs)
     hi = apply_coefficients(components, coefs)
 
     plot(components, "Ideal jet")
@@ -72,9 +70,9 @@ if __name__ == "__main__":
     sst = swap_noise(sst)
     sst = add_spikes(sst)
 
-    components = compute_components_numpy(sst, window_size=5)
-    coefs = compute_coefficients_components(components)
-    coefs["HI"] = compute_coefficient_hi(components, coefs)
+    components = components_numpy(sst, window_size=5)
+    coefs = coefficients_components(components)
+    coefs["HI"] = coefficient_hi(components, coefs)
     hi = apply_coefficients(components, coefs)
 
     plot(components, "Idea jet with noise", input_kw=dict(vmin=vmin, vmax=vmax))
@@ -87,9 +85,9 @@ if __name__ == "__main__":
         .sel(lat=slice(55, 15), lon=slice(-82, -40))
         .to_numpy()[::-1]
     )
-    components = compute_components_numpy(sst, window_size=5)
-    coefs = compute_coefficients_components(components)
-    coefs["HI"] = compute_coefficient_hi(components, coefs)
+    components = components_numpy(sst, window_size=5)
+    coefs = coefficients_components(components)
+    coefs["HI"] = coefficient_hi(components, coefs)
     hi = apply_coefficients(components, coefs)
 
     plot(components, "MODIS L3M")
@@ -102,9 +100,9 @@ if __name__ == "__main__":
         .sel(lat=slice(15, 55), lon=slice(-82, -40))
         .to_numpy()
     )
-    components = compute_components_numpy(sst, window_size=5)
-    coefs = compute_coefficients_components(components)
-    coefs["HI"] = compute_coefficient_hi(components, coefs)
+    components = components_numpy(sst, window_size=5)
+    coefs = coefficients_components(components)
+    coefs["HI"] = coefficient_hi(components, coefs)
     hi = apply_coefficients(components, coefs)
 
     plot(components, "CCI/C3S L4")
