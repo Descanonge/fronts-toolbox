@@ -88,7 +88,7 @@ Note that when using ``guvectorize`` with ``target="parallel"`` and
 ``guvectorize``, and returns a function that, when called, will compile as
 usual. This defers the faulty cached retrieval until execution. It also lets the
 user change compilation arguments at runtime (to change the target for
-instance), while still using the cache. Here is a small example::
+instance). Here is a small example::
 
     @guvectorize_lazy(
         [
@@ -117,13 +117,13 @@ instance.
 Moving window size
 ==================
 
-Multiple algorithms use a moving-window.. The user will provide the window
+Multiple algorithms use a moving window. The user will provide the window
 **size**: the number of pixels along its sides. A window of size 3x3 will
 contains 9 pixels. Please allow the user to input the window size as described
 in :ref:`window_size_user`.
 
-Often, in the implementation, it is easier to loop over half the window size
-(from the central pixel). This packages provides :func:`.util.get_window_reach`
+In the implementation, it is often easier to loop over half the window size
+(from the central pixel). This package provides :func:`.util.get_window_reach`
 to obtain the **reach** of the window. We define it as the number of pixels
 between the central pixel (excluding it) and the window edge (including it). A
 window of size 3 has a reach of 1, a window of size 5 a reach of 2, etc.
@@ -142,7 +142,7 @@ your algorithm to idealized data or real-life samples (both available in
 :mod:`.benchmarks.fields`).
 
 Some benchmarks can use data samples stored on Zenodo
-(`doi:10.5281/zenodo.15769617 <doi.org/10.5281/zenodo.15769617>`__). Use
+(`doi:10.5281/zenodo.15769617 <http://doi.org/10.5281/zenodo.15769617>`__). Use
 :func:`.fields.sample` to access them in the form of Xarray datasets.
 Open an issue to add more data if necessary.
 

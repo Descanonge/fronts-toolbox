@@ -38,8 +38,8 @@ Moving window size
 A number of algorithms rely on moving-window computations. Unless specified
 otherwise, the window size can be given as:
 
-- an int for a square window,
-- a sequence of ints in the order of the data. For instance, for data arranged
+- an :class:`int`, for a square window,
+- a sequence of :class:`int` in the order of the data. For instance, for data arranged
   as ('time', 'lat', 'lon') if we specify ``window_size=[3, 5]`` the window will
   be of size 3 along latitude and size 5 for longitude.
 - for Xarray, a mapping of the dimensions name to the size along that dimension.
