@@ -480,6 +480,8 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
     ],
     "(y,x),(c),(w),(),()->(y,x,c)",
     nopython=True,
+    cache=True,
+    target="parallel",
 )
 def _compute_components(
     input_image: np.ndarray[tuple[int, ...], _DT],
