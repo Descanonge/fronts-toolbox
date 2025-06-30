@@ -1,4 +1,11 @@
-"""Idealized fields."""
+"""Input fields for benchmarks and testing.
+
+There are some idealized fields, in numpy format. Some functions are provided to add
+noise. "Real-life" data samples are stored on Zenodo (`doi:10.5281/zenodo.15769617
+<doi.org/10.5281/zenodo.15769617>`__) and can be downloaded with `pooch
+<https://pypi.org/project/pooch/>`__.
+
+"""
 
 from __future__ import annotations
 
@@ -151,10 +158,15 @@ if has_pooch:
         base_url="doi:10.5281/zenodo.15769617",
         registry=None,
     )
+    """File registry of data samples."""
     REGISTRY.load_registry_from_doi()
 
 
 def sample(name: str) -> XarrayDataset:
+    """Return sample dataset.
+
+    :param name: Name of the dataset to retrieve. Can be `ESA-CCI-C3S` or `MODIS`.
+    """
     import xarray as xr
 
     if not has_pooch:
@@ -165,17 +177,19 @@ def sample(name: str) -> XarrayDataset:
 
     kwargs: dict[str, Any] = {}
     if name.upper() == "ESA-CCI-C3S":
+        zipfile = "ESA-CCI-C3S.zip"
         members = [
-            "ESA-CCI-C3S/20220201120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
-            "ESA-CCI-C3S/20220202120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
-            "ESA-CCI-C3S/20220203120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
+            "20220201120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
+            "20220202120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
+            "20220203120000-C3S-L4_GHRSST-SSTdepth-OSTIA-GLOB_ICDR2.1-v02.0-fv01.0.nc",
         ]
 
     elif name.upper() == "MODIS":
+        zipfile = "MODIS.zip"
         members = [
-            "MODIS/AQUA_MODIS.20250201.L3m.DAY.SST4.sst4.4km.nc",
-            "MODIS/AQUA_MODIS.20250202.L3m.DAY.SST4.sst4.4km.nc",
-            "MODIS/AQUA_MODIS.20250203.L3m.DAY.SST4.sst4.4km.nc",
+            "AQUA_MODIS.20250201.L3m.DAY.SST4.sst4.4km.nc",
+            "AQUA_MODIS.20250202.L3m.DAY.SST4.sst4.4km.nc",
+            "AQUA_MODIS.20250203.L3m.DAY.SST4.sst4.4km.nc",
         ]
         kwargs["preprocess"] = lambda ds: ds.assign_coords(
             time=[datetime.fromisoformat(ds.attrs["time_coverage_start"]).date()]
@@ -186,6 +200,7 @@ def sample(name: str) -> XarrayDataset:
         raise KeyError(
             f"Dataset name {name} is not registered. Must be one of {datasets}"
         )
+
     unpack = Unzip(members=members)
-    files = REGISTRY.fetch("fronts-toolbox-data.zip", processor=unpack)
+    files = REGISTRY.fetch(zipfile, processor=unpack)
     return xr.open_mfdataset(files, **kwargs)
