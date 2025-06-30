@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
+from collections.abc import Collection, Hashable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import numpy as np
-from numba import guvectorize, jit, prange
+from numba import jit, prange
 from typing_extensions import TypeIs
 
-from fronts_toolbox.util import FuncMapper, get_window_reach
+from fronts_toolbox.util import FuncMapper, get_window_reach, guvectorize_lazy
 
 try:
     import dask.array as da
@@ -97,9 +97,7 @@ def components_numpy(
         # (y,x),(c),(w),(),()->(y,x,c)
         kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
-    if gufunc is None:
-        gufunc = {}
-    func = _get_compiled_gufunc(**gufunc)
+    func = _compute_components(gufunc)
     output = func(
         input_field,
         list(range(3)),  # dummy argument of size 3, needed to accomadate dask
@@ -180,9 +178,7 @@ def components_dask(
         # (y,x),(c),(w),(),()->(y,x,c)
         kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
-    if gufunc is None:
-        gufunc = {}
-    func = _get_compiled_gufunc(**gufunc)
+    func = _compute_components(gufunc)
 
     # Do the computation for each chunk separately. All consideration of sharing
     # edges is dealt with by the overlap.
@@ -477,6 +473,14 @@ def _get_components_from_values(
 _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
 
 
+@guvectorize_lazy(
+    [
+        "(float32[:, :], intp[:], intp[:], float64, float64, float32[:, :, :])",
+        "(float64[:, :], intp[:], intp[:], float64, float64, float64[:, :, :])",
+    ],
+    "(y,x),(c),(w),(),()->(y,x,c)",
+    nopython=True,
+)
 def _compute_components(
     input_image: np.ndarray[tuple[int, ...], _DT],
     dummy: tuple[int, int, int],
@@ -586,19 +590,6 @@ def _compute_components(
             output[target_y, target_x, :] = _get_components_from_values(
                 np.ravel(win_values_filtered), bins_width, bins_shift
             )
-
-
-def _get_compiled_gufunc(cache=True, target="parallel") -> Callable:
-    return guvectorize(
-        [
-            "(float32[:, :], intp[:], intp[:], float64, float64, float32[:, :, :])",
-            "(float64[:, :], intp[:], intp[:], float64, float64, float64[:, :, :])",
-        ],
-        "(y,x),(c),(w),(),()->(y,x,c)",
-        nopython=True,
-        target=target,
-        cache=cache,
-    )(_compute_components)
 
 
 ## Normalization

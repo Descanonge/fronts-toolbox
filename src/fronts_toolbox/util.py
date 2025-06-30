@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from functools import lru_cache
 from typing import Any
 
 import numpy as np
+from numba import guvectorize
 
 
 @lru_cache
@@ -29,6 +30,26 @@ def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
 
     window_reach = list(int(np.floor(w / 2)) for w in window_size)
     return window_reach
+
+
+def guvectorize_lazy(*args, **kwargs):
+    """Wrap around numba.guvectorize.
+
+    This returns a function that, when called, will compile the decorated function
+    with the kwargs passed to the decorator and the function (those from the function
+    take priority).
+    """
+
+    def decorator(func):
+        def wrap(lazy_kwargs: Mapping | None):
+            if lazy_kwargs is None:
+                lazy_kwargs = {}
+            kw = dict(kwargs) | dict(lazy_kwargs)
+            return guvectorize(*args, **kw)(func)
+
+        return wrap
+
+    return decorator
 
 
 class FuncMapper:
