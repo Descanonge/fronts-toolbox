@@ -9,16 +9,18 @@ smoothing out the rest of the signal too much.
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection, Hashable, Sequence
-from typing import TYPE_CHECKING, TypeVar
+from collections.abc import Collection, Hashable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
-from numba import guvectorize, jit, prange
+from numba import float32, float64, intp, jit, prange
 
-from fronts_toolbox.util import FuncMapper
+from fronts_toolbox.util import Dispatcher, guvectorize_lazy
 
 if TYPE_CHECKING:
-    from fronts_toolbox.util import DaskArray, NDArray, XarrayArray
+    from dask.array import Array as DaskArray
+    from numpy.typing import NDArray
+    from xarray import DataArray
 
 DEFAULT_DIMS: list[Hashable] = ["lat", "lon"]
 """Default dimensions names to use if none are provided."""
@@ -31,6 +33,7 @@ def contextual_median_numpy(
     size: int = 3,
     iterations: int = 1,
     axes: Sequence[int] | None = None,
+    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> NDArray:
     """Apply contextual median filter.
@@ -51,6 +54,8 @@ def contextual_median_numpy(
     axes:
         Indices of the the y/lat and x/lon axes on which to work. If None (default), the
         last two axes are used.
+    gufunc:
+        Arguments passed to :func:`numba.guvectorize`.
     kwargs:
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
@@ -69,9 +74,11 @@ def contextual_median_numpy(
         # (y,x),()->(y,x)
         kwargs["axes"] = [tuple(axes), (), tuple(axes)]
 
+    func = _contextual_median(gufunc)
+
     output = input_field
     for _ in range(iterations):
-        output = _contextual_median(output, reach, **kwargs)
+        output = func(output, reach, **kwargs)
 
     return output
 
@@ -81,6 +88,7 @@ def contextual_median_dask(
     size: int = 3,
     iterations: int = 1,
     axes: Sequence[int] | None = None,
+    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> DaskArray:
     """Apply contextual median filter.
@@ -101,6 +109,8 @@ def contextual_median_dask(
     axes:
         Indices of the the y/lat and x/lon axes on which to work. If None (default), the
         last two axes are used.
+    gufunc:
+        Arguments passed to :func:`numba.guvectorize`.
     kwargs:
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
@@ -123,21 +133,18 @@ def contextual_median_dask(
     ndim = input_field.ndim
     depth = {ndim - 2: 1, ndim - 1: 1}
 
+    func = _contextual_median(gufunc)
+
     output = input_field
     for _ in range(iterations):
         overlap = da.overlap.overlap(output, depth=depth, boundary="none")
-        output = da.map_blocks(
-            _contextual_median,
-            overlap,
-            reach,
-            **kwargs,
-        )
+        output = da.map_blocks(func, overlap, reach, **kwargs)
         output = da.overlap.trim_internal(output, depth)
 
     return output
 
 
-contextual_median_mapper = FuncMapper(
+contextual_median_mapper = Dispatcher(
     "contextual_median",
     numpy=contextual_median_numpy,
     dask=contextual_median_dask,
@@ -145,11 +152,12 @@ contextual_median_mapper = FuncMapper(
 
 
 def contextual_median_xarray(
-    input_field: XarrayArray,
+    input_field: DataArray,
     size: int = 3,
     iterations: int = 1,
     dims: Collection[Hashable] | None = None,
-) -> XarrayArray:
+    gufunc: Mapping[str, Any] | None = None,
+) -> DataArray:
     """Apply contextual median filter.
 
     This is a basic median filter where the filter is applied if and only if the central
@@ -170,6 +178,8 @@ def contextual_median_xarray(
         no reordering will be made between the two dimensions.
         If not specified, is taken by module-wide variable :data:`DEFAULT_DIMS`
         which defaults to ``{'lat', 'lon'}``.
+    gufunc:
+        Arguments passed to :func:`numba.guvectorize`.
 
     Returns
     -------
@@ -189,7 +199,9 @@ def contextual_median_xarray(
 
     axes = sorted([input_field._get_axis_num(d) for d in dims])
     func = contextual_median_mapper.get_func(input_field.data)
-    output = func(input_field.data, size=size, iterations=iterations, axes=axes)
+    output = func(
+        input_field.data, size=size, iterations=iterations, axes=axes, gufunc=gufunc
+    )
 
     arr = xr.DataArray(
         data=output,
@@ -273,10 +285,10 @@ def is_min_at(values: NDArray, mask: NDArray, at: int) -> bool:
 _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
 
 
-@guvectorize(
+@guvectorize_lazy(
     [
-        "(float32[:, :], intp, float32[:, :])",
-        "(float64[:, :], intp, float64[:, :])",
+        (float32[:, :], intp, float32[:, :]),
+        (float64[:, :], intp, float64[:, :]),
     ],
     "(y,x),()->(y,x)",
     nopython=True,
@@ -313,6 +325,7 @@ def _contextual_median(
     # max number of pixel inside the moving window
     win_npixels = (2 * reach + 1) ** 2
 
+    # index of center when flattening the window
     flat_center = 2 * reach * (reach + 1)
     # from top left we count `reach` lines and `reach` cells to get to the center
     # x(2x+1)+x simplifies in 2x(x+1)
