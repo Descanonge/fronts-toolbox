@@ -16,7 +16,9 @@ from fronts_toolbox.heterogeneity_index import (
 )
 
 
-def plot(components: tuple, title: str, input_kw: Mapping | None = None) -> plt.Figure:
+def plot(
+    sst, components: tuple, hi, title: str, input_kw: Mapping | None = None
+) -> plt.Figure:
     if input_kw is None:
         input_kw = {}
 
@@ -62,7 +64,7 @@ if __name__ == "__main__":
     coefs["HI"] = coefficient_hi(components, coefs)
     hi = apply_coefficients(components, coefs)
 
-    plot(components, "Ideal jet")
+    plot(sst, components, hi, "Ideal jet")
 
     ## Ideal jet with noise
     sst = ideal_jet()
@@ -75,14 +77,16 @@ if __name__ == "__main__":
     coefs["HI"] = coefficient_hi(components, coefs)
     hi = apply_coefficients(components, coefs)
 
-    plot(components, "Idea jet with noise", input_kw=dict(vmin=vmin, vmax=vmax))
+    plot(
+        sst, components, hi, "Idea jet with noise", input_kw=dict(vmin=vmin, vmax=vmax)
+    )
 
     ## Sample MODIS
 
     sst = (
         sample("MODIS")
         .sst4.isel(time=2)
-        .sel(lat=slice(55, 15), lon=slice(-82, -40))
+        .sel(lat=slice(30, 10), lon=slice(-120, -100))
         .to_numpy()[::-1]
     )
     components = components_numpy(sst, window_size=5)
@@ -90,7 +94,7 @@ if __name__ == "__main__":
     coefs["HI"] = coefficient_hi(components, coefs)
     hi = apply_coefficients(components, coefs)
 
-    plot(components, "MODIS L3M")
+    plot(sst, components, hi, "MODIS L3M")
 
     ## Sample CCI/C3S
 
@@ -105,6 +109,6 @@ if __name__ == "__main__":
     coefs["HI"] = coefficient_hi(components, coefs)
     hi = apply_coefficients(components, coefs)
 
-    plot(components, "CCI/C3S L4")
+    plot(sst, components, hi, "CCI/C3S L4")
 
     plt.show()
