@@ -17,7 +17,7 @@ import pooch
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
-    from fronts_toolbox.util import XarrayDataset
+    from xarray import Dataset
 
 try:
     import pooch
@@ -160,7 +160,7 @@ if has_pooch:
     REGISTRY.load_registry_from_doi()
 
 
-def sample(name: str) -> XarrayDataset:
+def sample(name: str) -> Dataset:
     """Return sample dataset.
 
     :param name: Name of the dataset to retrieve. Can be `ESA-CCI-C3S` or `MODIS`.
