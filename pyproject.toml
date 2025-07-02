@@ -32,6 +32,8 @@ dependencies = [
 docs = [
     'sphinx==8.2.*',
     'sphinx-book-theme==0.15.*',
+    'sphinx-design',
+    'sphinx-copybutton',
     'nbsphinx>=0.9.2',
     'matplotlib',
     'xarray',

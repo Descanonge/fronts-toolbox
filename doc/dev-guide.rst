@@ -68,6 +68,8 @@ the input to the correct function, you can define a :class:`.util.Dispatcher`::
     unsupported, or if the needed library is not installed.
 
 
+.. _dev-numba:
+
 Numba and generalized functions
 ===============================
 
@@ -76,9 +78,13 @@ easily scale on large datasets. Please write your core function to avoid pure
 python loops, or alternatively compile your core function with `Numba
 <https://numba.pydata.org/>`__.
 
-Using :external+numba:func:`numba.guvectorize` allows to easily create a
-generalized universal function. This ensures that your computations will be
-properly vectorized and that it deals nicely with broadcasting and type
+If your function can be expressed in vectorized numpy functions, you may be able
+to transform your Python function into a universal function with
+:func:`numpy.frompyfunc`.
+
+Otherwise, using :external+numba:func:`numba.guvectorize` allows to easily
+create a generalized universal function. This ensures that your computations
+will be properly vectorized and that it deals nicely with broadcasting and type
 conversion.
 
 Note that when using ``guvectorize`` with ``target="parallel"`` and
@@ -127,6 +133,92 @@ In the implementation, it is often easier to loop over half the window size
 to obtain the **reach** of the window. We define it as the number of pixels
 between the central pixel (excluding it) and the window edge (including it). A
 window of size 3 has a reach of 1, a window of size 5 a reach of 2, etc.
+
+Axes management
+===============
+
+It is probable you need to give your function the indices of core axes it must
+work onto (typically the axes corresponding to latitude and longitude). If you
+have created a generalized universal function with numba (see :ref:`above
+<dev-numba>`), this will be taken care of. But you still need to specify the
+axes indices to the gufunc via the "axes" keyword argument, whose syntax is not
+the simplest (see :external+numpy:doc:`reference/ufuncs`).
+
+I suggest here to simplify things for the user. They only have to supply
+a sequence of indices (or of dimensions for xarray). It then is accommodated to
+the gufunc.
+
+.. note::
+
+    The operation depends on the signature of the function.
+
+
+.. tab-set::
+
+   .. tab-item:: Numpy and Dask
+
+      .. code-block:: python
+
+            def function_numpy(..., axes: Sequence[int] | None = None, **kwargs):
+                """...
+
+                    Parameters
+                    ----------
+                    axes:
+                        Indices of the the y/lat and x/lon axes on which to work. If
+                        None (default), the last two axes are used.
+                """
+                if axes is not None:
+                    # (y,x)->(y,x)
+                    kwargs["axes"] = [tuple(axes), tuple(axes)]
+
+                # kwargs is then passed to the compiled gufunc
+
+   .. tab-item:: Xarray
+
+      .. code-block:: python
+
+            DEFAULT_DIMS: list[Hashable] = ["lat", "lon"]
+            """Default dimensions names to use if none are provided."""
+
+            def function_xarray(input_field, dims: Collection[Hashable] | None = None):
+                """...
+
+                Parameters
+                ----------
+                dims:
+                    Names of the dimensions along which to compute the index. Order
+                    is irrelevant, no reordering will be made between the two
+                    dimensions. If not specified, is taken by module-wide variable
+                    :data:`DEFAULT_DIMS` which defaults to ``{'lat', 'lon'}``.
+                """
+                if dims is None:
+                    dims = DEFAULT_DIMS
+
+                axes = sorted([input_field._get_axis_num(d) for d in dims])
+
+                # axes can then be passed to the Numpy or Dask function
+
+
+Masked values
+=============
+
+If possible, please try to make your function resilient to missing values in the
+input field. This may require additional care to the compiled function
+implementation. There are several ways to go about it.
+
+You can require a mask argument that is obtained outside of the function (for
+instance with :meth:`xarray.DataArray.isnull`).
+
+You can compute the mask directly in the function, using
+:data:`~np.isfinite(field) <numpy.isfinite>`. This has the advantage of
+simplifying the signature, and can give you more control over how and when the
+mask is computed. More importantly, it can reduce the operation count when using
+Dask (since you avoid a ``da.isfinite`` call outside the function).
+
+.. note::
+
+    Xarray represents missing values with :data:`np.nan <numpy.nan>`.
 
 Testing and benchmark
 =====================
