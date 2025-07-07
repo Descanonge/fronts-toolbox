@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 from collections.abc import Callable, Mapping, Sequence
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 from numba import guvectorize
@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from dask.array import Array as DaskArray
     from typing_extensions import TypeIs
     from xarray import DataArray, Dataset
+
+
+Function = TypeVar("Function", bound=Callable)
 
 
 @lru_cache
@@ -61,7 +64,7 @@ def is_daskarray(x: object) -> TypeIs[DaskArray]:
     return False
 
 
-def guvectorize_lazy(*args, **kwargs):
+def guvectorize_lazy(*args, nopython: bool = True, cache: bool = True, **kwargs):
     """Wrap around numba.guvectorize.
 
     This returns a function that, when called, will compile the decorated function
@@ -70,13 +73,28 @@ def guvectorize_lazy(*args, **kwargs):
     """
 
     def decorator(func):
-        def wrap(lazy_kwargs: Mapping | None):
+        def generate_gufunc(lazy_kwargs: Mapping | None) -> Callable:
             if lazy_kwargs is None:
-                lazy_kwargs = {}
+                lazy_kwargs = dict(nopython=nopython, cache=cache)
             kw = dict(kwargs) | dict(lazy_kwargs)
             return guvectorize(*args, **kw)(func)
 
-        return wrap
+        doc = func.__doc__
+        if doc is None:
+            doc = ""
+        lines = doc.splitlines()
+        # watch out indent
+        wrap_doc = f"""{lines[0]}
+
+    .. note::
+
+        When called, return a compiled version of this function with ``lazy_kwargs``
+        passed to :func:`numba.guvectorize`.
+
+        """
+        generate_gufunc.__doc__ = "\n".join(wrap_doc.splitlines() + lines[1:])
+
+        return generate_gufunc
 
     return decorator
 

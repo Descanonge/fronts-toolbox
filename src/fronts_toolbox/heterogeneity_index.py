@@ -384,11 +384,6 @@ def _get_components_from_values(
 ) -> NDArray:
     """Compute components from sequence of values (in the sliding window).
 
-    This function is compiled just-in-time using :func:`numba.jit`.
-
-    *Numba options:*
-        ``nopython=True``, ``cache=True``, ``nogil=True``.
-
     Parameters
     ----------
     values:
@@ -483,8 +478,7 @@ def _compute_components(
     bins_shift: float,
     output: np.ndarray[tuple[int, ...], _DT],
 ):
-    """_compute_components(input_image, dummy, window_reach, bins_width, bins_shift, out=None)
-    Compute HI components from input field image.
+    """Compute HI components from input field image.
 
     .. warning:: Internal function.
 

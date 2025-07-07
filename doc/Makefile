@@ -16,7 +16,7 @@ help:
 
 clean: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) clean
-	rm _generated/*.rst
+	if [ -d "$(SOURCEDIR)/_generated" ]; then rm -rv "$(SOURCEDIR)/_generated"; fi
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).

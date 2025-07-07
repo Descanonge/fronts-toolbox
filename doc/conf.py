@@ -3,7 +3,12 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import sys
+from pathlib import Path
+
 import fronts_toolbox
+
+sys.path.append(str(Path("extensions").resolve()))
 
 ## Project information
 
@@ -21,6 +26,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "autodoc_jit",
     "sphinx.ext.napoleon",
     "sphinx_design",
     "sphinx_copybutton",

@@ -20,6 +20,7 @@ Modules
    :recursive:
 
    canny
+   cayula_cornillon
    heterogeneity_index
 
 .. currentmodule:: fronts_toolbox
