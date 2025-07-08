@@ -13,9 +13,11 @@ from collections.abc import Collection, Hashable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
-from numba import float32, float64, intp, jit, prange
+from numba import float32, float64, intp, prange
 
-from fronts_toolbox.util import Dispatcher, guvectorize_lazy
+from fronts_toolbox.util import Dispatcher, get_axes_kwarg, guvectorize_lazy
+
+from .boa import is_max_at, is_min_at
 
 if TYPE_CHECKING:
     from dask.array import Array as DaskArray

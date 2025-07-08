@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import logging
 from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
-from functools import lru_cache
+from functools import lru_cache, wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
@@ -165,6 +165,7 @@ def guvectorize_lazy(*args, nopython: bool = True, cache: bool = True, **kwargs)
     """
 
     def decorator(func):
+        @wraps(func)
         def generate_gufunc(lazy_kwargs: Mapping | None) -> Callable:
             if lazy_kwargs is None:
                 lazy_kwargs = dict(nopython=nopython, cache=cache)
@@ -182,6 +183,7 @@ def guvectorize_lazy(*args, nopython: bool = True, cache: bool = True, **kwargs)
 
         When called, return a compiled version of this function with ``lazy_kwargs``
         passed to :func:`numba.guvectorize`.
+        Typehints are from the compiled function point of view.
 
         """
         generate_gufunc.__doc__ = "\n".join(wrap_doc.splitlines() + lines[1:])
