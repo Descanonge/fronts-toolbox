@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
-from collections.abc import Callable, Mapping, Sequence
+import logging
+from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from typing_extensions import TypeIs
     from xarray import DataArray, Dataset
 
+log = logging.getLogger(__name__)
 
 Function = TypeVar("Function", bound=Callable)
 
@@ -38,6 +40,96 @@ def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
 
     window_reach = list(int(np.floor(w / 2)) for w in window_size)
     return window_reach
+
+
+def get_axes_kwarg(
+    signature: str, axes: Sequence[int], order: str = "y,x"
+) -> list[tuple[int, ...]]:
+    """Format `axes` argument for a ufunc from a single sequence of ints.
+
+    :param signature: Signature of the universal function.
+    :param axes: Core axes indices in the input array.
+    :param order: Order of core dimensions for `axes`.
+
+    :returns: Argument formatted for the `axes` keyword argument of a ufunc.
+    """
+    core_indices = {dim: i for dim, i in zip(order.split(","), axes, strict=True)}
+
+    in_args, out_args = signature.split("->", 2)
+    args_axes = []
+    for args in [in_args, out_args]:
+        for arg in args.split("),("):
+            args_axes.append(arg.replace("(", "").replace(")", ""))
+
+    out = []
+    for arg in args_axes:
+        indices: list[int]
+        if not arg:
+            indices = []
+        else:
+            indices = []
+            for dim in arg.split(","):
+                indices.append(core_indices.get(dim, 0))
+
+        out.append(tuple(indices))
+
+    return out
+
+
+def detect_bins_shift(input_field: DataArray) -> float:
+    """Detect bins shift from scale factor if present."""
+    scale_factor = input_field.encoding.get("scale_factor", None)
+    if scale_factor is None:
+        log.warning(
+            "Did not find `scale_factor` in the encoding of variable '%s'. "
+            "Bins will not be shifted. Set the value of the `bins_shift` argument "
+            "manually, or set it to False to silence this warning.",
+            input_field.name,
+        )
+        bins_shift = 0.0
+    else:
+        bins_shift = scale_factor / 2
+        log.debug("Shifting bins by %g.", bins_shift)
+
+    return bins_shift
+
+
+def get_dims_and_window_size(
+    input_field: DataArray | Dataset,
+    dims: Collection[Hashable] | None,
+    window_size: int | Mapping[Hashable, int],
+    default_dims: list[Hashable],
+) -> tuple[list[Hashable], dict[Hashable, int]]:
+    """Process window_size and dims arguments."""
+    if dims is None:
+        if isinstance(window_size, Mapping):
+            dims = list(window_size.keys())
+        else:
+            dims = default_dims
+
+    # order as data
+    dims = [d for d in input_field.dims if d in dims]
+
+    if isinstance(window_size, int):
+        window_size = {d: window_size for d in dims}
+
+    window_size = dict(window_size)
+
+    if set(window_size.keys()) != set(dims):
+        raise ValueError(
+            f"Dimensions from `dims` ({dims}) and "
+            f"`window_size` ({window_size}) are incompatible."
+        )
+
+    target_length = len(default_dims)
+    if len(dims) != target_length:
+        raise IndexError(f"`dims` should be of length {target_length} ({dims})")
+    if len(window_size) != target_length:
+        raise IndexError(
+            f"`window_size` should be of length {target_length} ({window_size})"
+        )
+
+    return dims, window_size
 
 
 def is_dataset(x: object) -> TypeIs[Dataset]:

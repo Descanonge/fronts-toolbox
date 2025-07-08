@@ -11,6 +11,8 @@ from numba import jit, prange
 
 from fronts_toolbox.util import (
     Dispatcher,
+    detect_bins_shift,
+    get_dims_and_window_size,
     get_window_reach,
     guvectorize_lazy,
     is_dataarray,
@@ -201,9 +203,16 @@ def components_dask(
     return stdev, skew, bimod
 
 
+components_dispatcher = Dispatcher(
+    "components",
+    numpy=components_numpy,
+    dask=components_dask,
+)
+
+
 def components_xarray(
     input_field: DataArray,
-    window_size: int | Mapping[Hashable, int] | Sequence[int],
+    window_size: int | Mapping[Hashable, int],
     bins_width: float = 0.1,
     bins_shift: float | bool = True,
     dims: Collection[Hashable] | None = None,
@@ -247,82 +256,25 @@ def components_xarray(
     -------
     Dataset containing the components as three variables.
     """
+    import xarray as xr
+
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
 
     # Detect if we should shift bins
     if bins_shift is True:
-        scale_factor = input_field.encoding.get("scale_factor", None)
-        if scale_factor is None:
-            logger.warning(
-                "Did not find `scale_factor` in the encoding of variable '%s'. "
-                "Bins will not be shifted. Set the value of the `bins_shift` argument "
-                "manually, or set it to False to silence this warning.",
-                input_field.name,
-            )
-            bins_shift = 0.0
-        else:
-            bins_shift = scale_factor / 2
-            logger.debug("Shifting bins by %g.", bins_shift)
+        bins_shift = detect_bins_shift(input_field)
     else:
         bins_shift = 0.0
 
-    if dims is None:
-        if isinstance(window_size, Mapping):
-            dims = list(window_size.keys())
-        else:
-            dims = DEFAULT_DIMS
-
-    # make sure we have a copy
-    dims = list(dims)
-
-    if isinstance(window_size, int):
-        window_size = {d: window_size for d in dims}
-    elif not isinstance(window_size, Mapping):
-        if len(window_size) != 2:
-            raise IndexError(
-                "Window size given as a sequence must be of length 2 "
-                f"(received {window_size})"
-            )
-        window_size = {d: size for d, size in zip(dims, window_size, strict=True)}
-
-    return _components_xarray_inner(
-        input_field, window_size, bins_width, bins_shift, dims, gufunc
+    dims, window_size = get_dims_and_window_size(
+        input_field, dims, window_size, DEFAULT_DIMS
     )
 
-
-components_dispatcher = Dispatcher(
-    "components",
-    numpy=components_numpy,
-    dask=components_dask,
-)
-
-
-def _components_xarray_inner(
-    input_field: DataArray,
-    window_size: Mapping[Hashable, int],
-    bins_width: float,
-    bins_shift: float,
-    dims: Collection[Hashable],
-    gufunc: Mapping[str, Any] | None = None,
-) -> Dataset:
-    import xarray as xr
-
-    if len(dims) != 2:
-        raise IndexError(f"`dims` should be of length 2 ({dims})")
-    if len(window_size) != 2:
-        raise IndexError(f"`window_size` should be of length 2 ({window_size})")
-    if set(window_size.keys()) != set(dims):
-        raise ValueError(
-            f"Dimensions from `dims` ({dims}) and "
-            f"`window_size` ({window_size}) are incompatible."
-        )
-
     # Order the window_size like the data
-    window_size_seq = [window_size[d] for d in input_field.dims if d in dims]
-
-    # We also find the dimensions indices to send to subfunctions
-    axes = sorted([input_field._get_axis_num(d) for d in dims])
+    window_size_seq = [window_size[d] for d in dims]
+    # dimensions indices to send to subfunctions
+    axes = [input_field.get_axis_num(dims)]
 
     # I don't use xr.apply_ufunc because the dask function is quite complex
     # and cannot be dealt with only with dask.apply_gufunc (which is what
