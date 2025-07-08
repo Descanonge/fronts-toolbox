@@ -6,8 +6,10 @@ import logging
 from collections.abc import Collection, Hashable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+import numba.types as nt
 import numpy as np
 from numba import jit, prange
+from numpy.typing import NDArray
 
 from fronts_toolbox.util import (
     Dispatcher,
@@ -21,7 +23,6 @@ from fronts_toolbox.util import (
 
 if TYPE_CHECKING:
     from dask.array import Array as DaskArray
-    from numpy.typing import NDArray
     from xarray import DataArray, Dataset
 
 
@@ -39,16 +40,19 @@ is not a Mapping.
 
 ## Components computation
 
+_DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
+_ArrayType = np.ndarray[tuple[int, ...], _DT]
+
 
 def components_numpy(
-    input_field: NDArray,
+    input_field: _ArrayType,
     window_size: int | Sequence[int],
     bins_width: float = 0.1,
     bins_shift: float = 0.0,
     axes: Sequence[int] | None = None,
     gufunc: Mapping[str, Any] | None = None,
     **kwargs,
-) -> tuple[NDArray, NDArray, NDArray]:
+) -> tuple[_ArrayType, _ArrayType, _ArrayType]:
     """Compute components from a Numpy array.
 
     Parameters
@@ -76,9 +80,8 @@ def components_numpy(
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
-    Returns
-    -------
-    Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
+
+    :returns: Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
     """
     window_reach = get_window_reach(window_size)
 
@@ -144,9 +147,8 @@ def components_dask(
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
-    Returns
-    -------
-    Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
+
+    :returns: Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
     """
     import dask.array as da
 
@@ -244,9 +246,9 @@ def components_xarray(
     gufunc:
         Arguments passed to :func:`numba.guvectorize`.
 
-    Returns
-    -------
-    Dataset containing the components as three variables.
+
+    :returns: Dataset containing the components as three variables.
+    :rtype: xarray.Dataset
     """
     import xarray as xr
 
@@ -314,14 +316,14 @@ def components_xarray(
 
 @jit(
     [
-        "float32[:](float32[:], float64, float64)",
-        "float64[:](float64[:], float64, float64)",
+        nt.float32[:](nt.float32[:], nt.float64, nt.float64),
+        nt.float64[:](nt.float64[:], nt.float64, nt.float64),
     ],
     nopython=True,
     cache=True,
     nogil=True,
 )
-def _get_components_from_values(
+def get_components_from_values(
     values: NDArray,
     bins_width: float,
     bins_shift: float,
@@ -344,10 +346,9 @@ def _get_components_from_values(
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
-    Returns
-    -------
-    Tuple of the three components (scalar values): standard deviation,
-    skewness, and bimodality. In this order.
+
+    :returns: Tuple of the three components (scalar values): standard deviation,
+        skewness, and bimodality. In this order.
     """
     avg = np.mean(values)
     n_values = values.size
@@ -401,9 +402,6 @@ def _get_components_from_values(
     return np.asarray([stdev, skewness, bimod], dtype=values.dtype)
 
 
-_DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
-
-
 @guvectorize_lazy(
     [
         "(float32[:, :], intp[:], intp[:], float64, float64, float32[:, :, :])",
@@ -415,18 +413,18 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
     target="parallel",
 )
 def components_core(
-    input_image: np.ndarray[tuple[int, ...], _DT],
-    dummy: tuple[int, int, int],
+    input_image: np.ndarray[tuple[int, int], _DT],
+    dummy: np.ndarray[tuple[int], np.dtype[np.integer]],
     window_reach: np.ndarray[tuple[int], np.dtype[np.integer]],
     bins_width: float,
     bins_shift: float,
-    output: np.ndarray[tuple[int, ...], _DT],
+    output: np.ndarray[tuple[int, int], _DT],
 ):
     """Compute HI components from input field image.
 
     .. warning:: Internal function.
 
-        Users should rather use :func:`compute_components_numpy`.
+        Users should rather use :func:`components_numpy`.
 
     Parameters
     ----------
@@ -460,12 +458,10 @@ def components_core(
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
-    Returns
-    -------
-    components: NDArray
-        An array of the same size and datatype as the input one, with an additional
-        dimension at the end to separate the 3 components. The components are in the
-        following order: standard deviation, skewness, and bimodality.
+
+    :returns: An array of the same size and datatype as the input one, with an
+        additional dimension at the end to separate the 3 components. The components are
+        in the following order: standard deviation, skewness, and bimodality.
     """
     window_reach_y, window_reach_x = window_reach
     img_size_y, img_size_x = input_image.shape
@@ -497,7 +493,7 @@ def components_core(
 
             # pass the array of values (we use ravel to make sure it is
             # contiguous in memory)
-            output[target_y, target_x, :] = _get_components_from_values(
+            output[target_y, target_x, :] = get_components_from_values(
                 np.ravel(win_values_filtered), bins_width, bins_shift
             )
 
@@ -515,15 +511,10 @@ def coefficients_components_numpy(components: Sequence[NDArray]) -> dict[str, fl
     Coefficients are computed over the full range of data contained in input
     parameter ``components``.
 
-    Parameters
-    ----------
-    Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
-    default, ``stdev``, ``skew``, ``bimod``).
+    :param components: Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by
+        default, ``stdev``, ``skew``, ``bimod``).
 
-    Returns
-    -------
-    coefficients:
-        Dictionnary containing coefficients for each component.
+    :returns: Dictionnary containing coefficients for each component.
     """
     coefficients = {}
     for name, comp in zip(COMPONENTS_NAMES, components, strict=True):
@@ -549,15 +540,10 @@ def coefficients_components_dask(components: Sequence[DaskArray]) -> dict[str, f
     Coefficients are computed over the full range of data contained in input
     parameter ``components``.
 
-    Parameters
-    ----------
-    Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
-    default, ``stdev``, ``skew``, ``bimod``).
+    :param components: Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by
+            default, ``stdev``, ``skew``, ``bimod``).
 
-    Returns
-    -------
-    coefficients:
-        Dictionnary containing coefficients for each component.
+    :returns: Dictionnary containing coefficients for each component.
     """
     import dask.array as da
 
@@ -587,17 +573,12 @@ def coefficients_components_xarray(
     Coefficients are computed over the full range of data contained in input
     parameter ``components``.
 
-    Parameters
-    ----------
-    components:
-        Either a :class:`xarray.Dataset` containing the three components, such as
-        returned from :func:`~.components.compute_components_xarray`, or three arrays in
-        the order defined by :data:`~.components.COMPONENTS_NAMES` (by default,
-        ``stdev``, ``skew``, ``bimod``).
+    :param components: Either a :class:`xarray.Dataset` containing the three components,
+        such as returned from :func:`components_xarray`, or three arrays in the order
+        defined by :data:`COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
+        ``bimod``).
 
-    Returns
-    -------
-    Dictionnary containing coefficients for each component.
+    :returns: Dictionnary containing coefficients for each component.
     """
     if is_dataset(components):
         components = tuple(components[name] for name in COMPONENTS_NAMES)
@@ -637,19 +618,12 @@ def coefficients_components(
     Coefficients are computed over the full range of data contained in input
     parameter ``components``.
 
+    :param components: Either a :class:`xarray.Dataset` containing the three components,
+        such as returned from :func:`components_xarray`, or three arrays (from Numpy,
+        Dask, or Xarray) in the order defined by :data:`COMPONENTS_NAMES` (by default,
+        ``stdev``, ``skew``, ``bimod``).
 
-    Parameters
-    ----------
-    components:
-        Either a :class:`xarray.Dataset` containing the three components, such as
-        returned from :func:`~.components.compute_components_xarray`, or three arrays
-        (from Numpy, Dask, or Xarray) in the order defined by
-        :data:`~.components.COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
-        ``bimod``).
-
-    Returns
-    -------
-    Dictionnary containing coefficients for each component.
+    :returns: Dictionnary containing coefficients for each component.
     """
     if is_dataset(components):
         func = coefficients_components_dispatcher.get("xarray")
@@ -675,8 +649,8 @@ def coefficient_hi_numpy(
     Parameters
     ----------
     components:
-        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
-        default, ``stdev``, ``skew``, ``bimod``).
+        Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by default,
+        ``stdev``, ``skew``, ``bimod``).
     coefficients:
         Dictionnary of the components normalization coefficients.
     quantile_target:
@@ -687,9 +661,8 @@ def coefficient_hi_numpy(
     kwargs:
         Arguments passed to :func:`numpy.histogram`.
 
-    Returns
-    -------
-    Coefficient to normalize the HI with.
+
+    :returns: Coefficient to normalize the HI with.
     """
     from scipy.stats import rv_histogram
 
@@ -730,8 +703,8 @@ def coefficient_hi_dask(
     Parameters
     ----------
     components:
-        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
-        default, ``stdev``, ``skew``, ``bimod``).
+        Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by default,
+        ``stdev``, ``skew``, ``bimod``).
     coefficients:
         Dictionnary of the components normalization coefficients.
     quantile_target:
@@ -742,9 +715,8 @@ def coefficient_hi_dask(
     kwargs:
         Arguments passed to :func:`dask.array.histogram`.
 
-    Returns
-    -------
-    Coefficient to normalize the HI with.
+
+    :returns: Coefficient to normalize the HI with.
     """
     import dask.array as da
     from scipy.stats import rv_histogram
@@ -787,8 +759,8 @@ def coefficient_hi_xarray(
     Parameters
     ----------
     components:
-        Three arrays in the order defined by :data:`~.components.COMPONENTS_NAMES` (by
-        default, ``stdev``, ``skew``, ``bimod``).
+        Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by default,
+        ``stdev``, ``skew``, ``bimod``).
     coefficients:
         Dictionnary of the components normalization coefficients.
     quantile_target:
@@ -799,9 +771,8 @@ def coefficient_hi_xarray(
     kwargs:
         Arguments passed to :func:`xarray_histogram.core.histogram`.
 
-    Returns
-    -------
-    Coefficient to normalize the HI with.
+
+    :returns: Coefficient to normalize the HI with.
     """
     import boost_histogram as bh
     from scipy.stats import rv_histogram
@@ -858,10 +829,9 @@ def coefficient_hi(
     ----------
     components:
         Either a :class:`xarray.Dataset` containing the three components, such as
-        returned from :func:`~.components.compute_components_xarray`, or three arrays
-        (from Numpy, Dask, or Xarray) in the order defined by
-        :data:`~.components.COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
-        ``bimod``).
+        returned from :func:`components_xarray`, or three arrays (from Numpy, Dask, or
+        Xarray) in the order defined by :data:`COMPONENTS_NAMES` (by default, ``stdev``,
+        ``skew``, ``bimod``).
     coefficients:
         Dictionnary of the components normalization coefficients.
     quantile_target:
@@ -872,9 +842,8 @@ def coefficient_hi(
     kwargs:
         Arguments passed to :func:`xarray_histogram.core.histogram`.
 
-    Returns
-    -------
-    Coefficient to normalize the HI with.
+
+    :returns: Coefficient to normalize the HI with.
     """
     if is_dataset(components):
         func = coefficient_hi_dispatcher.get("xarray")
@@ -917,18 +886,16 @@ def apply_coefficients(
     ----------
     components:
         Either a :class:`xarray.Dataset` containing the three components, such as
-        returned from :func:`~.components.compute_components_xarray`, or three arrays
-        (from Numpy, Dask, or Xarray) in the order defined by
-        :data:`~.components.COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
-        ``bimod``).
+        returned from :func:`components_xarray`, or three arrays (from Numpy, Dask, or
+        Xarray) in the order defined by :data:`COMPONENTS_NAMES` (by default, ``stdev``,
+        ``skew``, ``bimod``).
     coefficients:
         Dictionnary of the components normalization coefficients.
         If the coefficient for the HI is present, it will be applied, otherwise it will
         be taken equal to 1.
 
-    Returns
-    -------
-    Normalized HI (single variable).
+
+    :returns: Normalized HI (single variable).
     """
     if is_dataset(components):
         components = tuple(components[name] for name in COMPONENTS_NAMES)

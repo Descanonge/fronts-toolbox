@@ -58,7 +58,7 @@ autosummary_generate = ["api.rst"]
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_use_param = True
-napoleon_use_rtype = False
+napoleon_use_rtype = True
 napoleon_preprocess_type = False
 # napoleon_type_aliases = autodoc_type_aliases.copy()
 

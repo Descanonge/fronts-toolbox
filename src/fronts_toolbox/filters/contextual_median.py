@@ -12,8 +12,9 @@ import logging
 from collections.abc import Collection, Hashable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
+import numba.types as nt
 import numpy as np
-from numba import float32, float64, intp, prange
+from numba import prange
 
 from fronts_toolbox.util import Dispatcher, get_axes_kwarg, guvectorize_lazy
 
@@ -62,21 +63,17 @@ def contextual_median_numpy(
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
-    Returns
-    -------
-    output:
-        Filtered array.
 
+    :returns: Filtered array.
     """
     if (size % 2) == 0:
         raise ValueError("Window size should be odd.")
     reach = int(np.floor(size / 2))
 
-    if axes is not None:
-        # (y,x),()->(y,x)
-        kwargs["axes"] = [tuple(axes), (), tuple(axes)]
+    func = contextual_median_core(gufunc)
 
-    func = _contextual_median(gufunc)
+    if axes is not None:
+        kwargs["axes"] = get_axes_kwarg(func.signature, axes, "y,x")
 
     output = input_field
     for _ in range(iterations):
@@ -117,10 +114,8 @@ def contextual_median_dask(
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
-    Returns
-    -------
-    output
-        Filtered array.
+
+    :returns: Filtered array.
     """
     import dask.array as da
 
@@ -128,14 +123,13 @@ def contextual_median_dask(
         raise ValueError("Window size should be odd.")
     reach = int(np.floor(size / 2))
 
-    if axes is not None:
-        # (y,x),()->(y,x)
-        kwargs["axes"] = [tuple(axes), (), tuple(axes)]
-
     ndim = input_field.ndim
     depth = {ndim - 2: 1, ndim - 1: 1}
 
-    func = _contextual_median(gufunc)
+    func = contextual_median_core(gufunc)
+
+    if axes is not None:
+        kwargs["axes"] = get_axes_kwarg(func.signature, axes, "y,x")
 
     output = input_field
     for _ in range(iterations):
@@ -183,10 +177,9 @@ def contextual_median_xarray(
     gufunc:
         Arguments passed to :func:`numba.guvectorize`.
 
-    Returns
-    -------
-    output
-        Filtered array.
+
+    :returns: Filtered array.
+    :rtype: xarray.DataArray
     """
     import xarray as xr
 
@@ -199,7 +192,7 @@ def contextual_median_xarray(
     if len(dims) != 2:
         raise IndexError(f"`dims` should be of length 2 ({dims})")
 
-    axes = sorted([input_field._get_axis_num(d) for d in dims])
+    axes = sorted(input_field.get_axis_num(dims))
     func = contextual_median_mapper.get_func(input_field.data)
     output = func(
         input_field.data, size=size, iterations=iterations, axes=axes, gufunc=gufunc
@@ -223,17 +216,17 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
 
 @guvectorize_lazy(
     [
-        (float32[:, :], intp, float32[:, :]),
-        (float64[:, :], intp, float64[:, :]),
+        (nt.float32[:, :], nt.intp, nt.float32[:, :]),
+        (nt.float64[:, :], nt.intp, nt.float64[:, :]),
     ],
     "(y,x),()->(y,x)",
     nopython=True,
     target="parallel",
     cache=True,
 )
-def _contextual_median(
+def contextual_median_core(
     field: np.ndarray[tuple[int, ...], _DT],
-    reach: int,
+    window_reach: int,
     output: np.ndarray[tuple[int, ...], _DT],
 ):
     """Apply contextual median filter.
@@ -244,14 +237,19 @@ def _contextual_median(
 
     Parameters
     ----------
-    field
-        Input array to filter.
-    reach
+    field:
+        Input array to filter. Invalid values must be marked as `np.nan` (this is the
+        behavior of Xarray: see :external+xarray:ref:`missing_values`).
+    window_reach:
         Moving window size as the number of pixels between central pixel and border.
-    output
+    output:
         Output array.
-    kwargs
-        See valid keywords arguments for universal functions.
+    kwargs:
+        See available kwargs for universal functions at
+        :external+numpy:ref:`c-api.generalized-ufuncs`.
+
+
+    :returns: Filtered array.
     """
     output[:] = field.copy()
     ny, nx = field.shape
@@ -259,17 +257,17 @@ def _contextual_median(
     mask = ~np.isfinite(field)
 
     # max number of pixel inside the moving window
-    win_npixels = (2 * reach + 1) ** 2
+    win_npixels = (2 * window_reach + 1) ** 2
 
     # index of center when flattening the window
-    flat_center = 2 * reach * (reach + 1)
+    flat_center = 2 * window_reach * (window_reach + 1)
     # from top left we count `reach` lines and `reach` cells to get to the center
     # x(2x+1)+x simplifies in 2x(x+1)
 
-    for center_y in prange(reach, ny - reach):
-        slice_y = slice(center_y - reach, center_y + reach + 1)
-        for center_x in prange(reach, nx - reach):
-            slice_x = slice(center_x - reach, center_x + reach + 1)
+    for center_y in prange(window_reach, ny - window_reach):
+        slice_y = slice(center_y - window_reach, center_y + window_reach + 1)
+        for center_x in prange(window_reach, nx - window_reach):
+            slice_x = slice(center_x - window_reach, center_x + window_reach + 1)
 
             # central pixel is invalid
             if mask[center_y, center_x]:

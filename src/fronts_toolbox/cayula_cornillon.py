@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import numba.types as nt
 import numpy as np
 from numba import jit, prange
+from numpy.typing import NDArray
 
 from fronts_toolbox.util import (
     Dispatcher,
@@ -100,10 +101,9 @@ def cayula_cornillon_numpy(
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
-    Returns
-    -------
-    Array of the number of fronts detected for each pixel. If there is overlap when
-    shifting the moving window, the value can be greater than 1.
+
+    :returns: Array of the number of fronts detected for each pixel. If there is overlap
+        when shifting the moving window, the value can be greater than 1.
     """
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
@@ -176,10 +176,8 @@ def cayula_cornillon_dask(
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
 
-    Returns
-    -------
-    Array of the number of fronts detected for each pixel. If there is overlap when
-    shifting the moving window, the value can be greater than 1.
+     :returns: Array of the number of fronts detected for each pixel. If there is
+        overlap when shifting the moving window, the value can be greater than 1.
     """
     import dask.array as da
 
@@ -235,7 +233,6 @@ def cayula_cornillon_xarray(
     bimodal_criteria: float = 0.7,
     dims: Collection[Hashable] | None = None,
     gufunc: Mapping[str, Any] | None = None,
-    **kwargs,
 ) -> DataArray:
     """Apply Cayula-Cornillon algorithm.
 
@@ -277,10 +274,9 @@ def cayula_cornillon_xarray(
     gufunc:
         Arguments passed to :func:`numba.guvectorize`.
 
-    Returns
-    -------
-    Array of the number of fronts detected for each pixel. If there is overlap when
-    shifting the moving window, the value can be greater than 1.
+
+    :returns: Array of the number of fronts detected for each pixel. If there is overlap
+        when shifting the moving window, the value can be greater than 1.
     """
     import xarray as xr
 
@@ -348,8 +344,8 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
 
 @jit(
     [
-        nt.optional(nt.float64)(nt.float32[:], nt.float64, nt.float64),
-        nt.optional(nt.float64)(nt.float64[:], nt.float64, nt.float64),
+        nt.optional(nt.float64)(nt.float32[:], nt.float64, nt.float64, nt.float64),
+        nt.optional(nt.float64)(nt.float64[:], nt.float64, nt.float64, nt.float64),
     ],
     nopython=True,
     cache=True,
@@ -376,9 +372,9 @@ def get_threshold(
     bimodal_criteria:
         Criteria for determining if the distribution is bimodal or not.
 
-    Returns
-    -------
-    Optimal separation temperature if the criterion is reached. None otherwise.
+
+    :returns: Optimal separation temperature if the criterion is reached.
+        None otherwise.
     """
     n_min_bin = 4
 
@@ -450,9 +446,8 @@ def count_neighbor(
     neighbor:
         Location of the considered neighbor in the window.
 
-    Returns
-    -------
-    Array of T0, T1, R
+
+    :returns: Array of T0, T1, R
     """
     out = np.zeros(3, dtype=np.int8)
     if invalid[*pixel] or invalid[*neighbor]:
@@ -493,9 +488,8 @@ def cohesion(
     invalid:
         Mask of the moving window. True is invalid value.
 
-    Returns
-    -------
-    True if the clusters are spatially coherent.
+
+    :returns: True if the clusters are spatially coherent.
     """
     ny, nx = cluster.shape
 
@@ -554,9 +548,8 @@ def get_edges(
     invalid:
         Mask of the moving window. True is invalid value.
 
-    Returns
-    -------
-    Array of edges the size of the window, True if the pixel is an edge.
+
+    :returns: Array of edges the size of the window, True if the pixel is an edge.
     """
     ny, nx = cluster.shape
     edges = np.zeros((ny, nx), dtype=np.dtype(np.bool))
@@ -580,12 +573,14 @@ def get_edges(
             nt.intp[:],
             nt.float64,
             nt.float64,
+            nt.float64,
             nt.int64[:, :],
         ),
         (
             nt.float64[:, :],
             nt.int64[:],
             nt.intp[:],
+            nt.float64,
             nt.float64,
             nt.float64,
             nt.int64[:, :],
@@ -606,6 +601,10 @@ def cayula_cornillon_core(
     output: np.ndarray[tuple[int, int], np.dtype[np.int64]],
 ):
     """Cayula-Cornillon algorithm.
+
+    .. warning:: Internal function.
+
+        Users should rather use :func:`cayula_cornillon_numpy`.
 
     Parameters
     ----------
@@ -632,10 +631,10 @@ def cayula_cornillon_core(
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
 
-    Returns
-    -------
-    Array of counting the number of fronts detected per pixel. This number can be
-    greater than one if the moving window overlaps itself (step is smaller than size).
+
+    :returns: Array of counting the number of fronts detected per pixel. This number can
+        be greater than one if the moving window overlaps itself (step is smaller than
+        size).
     """
     ny, nx = field.shape
     size_y, size_x = window_size
@@ -661,8 +660,8 @@ def cayula_cornillon_core(
             window = field[slice_y, slice_x]
             window_valid = valid[slice_y, slice_x]
             cluster = (window < threshold).astype(np.int8)
-            # if not cohesion(cluster, ~window_valid):
-            #     continue
+            if not cohesion(cluster, ~window_valid):
+                continue
 
             window_edges = get_edges(cluster, ~window_valid)
             output[slice_y, slice_x] += window_edges

@@ -3,7 +3,6 @@
 .. automodule:: {{ fullname }}
     :members:
     :private-members:
-    :undoc-members:
 
 {% block modules %}
 {% if modules %}
