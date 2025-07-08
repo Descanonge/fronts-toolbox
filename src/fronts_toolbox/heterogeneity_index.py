@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from xarray import DataArray, Dataset
 
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 COMPONENTS_NAMES = ["stdev", "skew", "bimod"]
 """Components short name, in their order of appearance in function signatures."""
@@ -63,12 +63,10 @@ def components_numpy(
         specify ``window_size=[3, 5]`` the window will be of size 3 along latitude and
         size 5 for longitude.
     bins_width:
-        Width of the bins used to construct the histogram when computing the
-        bimodality.
+        Width of the bins used to construct the histogram when computing the bimodality.
     bins_shift:
-        If non-zero, shift the leftmost and rightmost edges of the bins by
-        this amount to avoid artefacts caused by the discretization of the
-        input field data.
+        If non-zero, shift the leftmost and rightmost edges of the bins by this amount
+        to avoid artefacts caused by the discretization of the input field data.
     axes:
         Indices of the the y/lat and x/lon axes on which to work. If None (default), the
         last two axes are used.
@@ -91,7 +89,7 @@ def components_numpy(
         # (y,x),(c),(w),(),()->(y,x,c)
         kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
-    func = _compute_components(gufunc)
+    func = components_core(gufunc)
     output = func(
         input_field,
         list(range(3)),  # dummy argument of size 3, needed to accomadate dask
@@ -122,7 +120,7 @@ def components_dask(
     Parameters
     ----------
     input_field: dask.array.Array
-        Array of the input field from which to compute the heterogeneity index.
+        Array of the input field.
     window_size:
         Total size of the moving window, in pixels. If an integer, the size is taken
         identical for both axis. Otherwise it must be a sequence of 2 integers
@@ -149,11 +147,6 @@ def components_dask(
     Returns
     -------
     Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
-
-    Raises
-    ------
-    ValueError: ``bins_width`` cannot be 0.
-    TypeError: ``axis`` must be of length 2.
     """
     import dask.array as da
 
@@ -173,7 +166,7 @@ def components_dask(
         # (y,x),(c),(w),(),()->(y,x,c)
         kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
-    func = _compute_components(gufunc)
+    func = components_core(gufunc)
 
     # Do the computation for each chunk separately. All consideration of sharing
     # edges is dealt with by the overlap.
@@ -223,7 +216,7 @@ def components_xarray(
     Parameters
     ----------
     input_field: xarray.DataArray
-        Array of the input field from which to compute the heterogeneity index.
+        Array of the input field.
     window_size:
         Total size of the moving window, in pixels. If a single integer, the size is
         taken identical for both axis. Otherwise it can be a mapping of the dimensions
@@ -233,14 +226,13 @@ def components_xarray(
         arranged as ('time', 'lat', 'lon') if we specify ``window_size=[3, 5]`` the
         window will be of size 3 along latitude and size 5 for longitude.
     bins_width:
-        Width of the bins used to construct the histogram when computing the
-        bimodality.
+        Width of the bins used to construct the histogram when computing the bimodality.
     bins_shift:
-        If a non-zero :class:`float`, shift the leftmost and rightmost edges of
-        the bins by this amount to avoid artefacts caused by the discretization
-        of the input field data.
-        If `True` (default), wether to shift and by which amount is determined using
-        the input metadata.
+        If a non-zero :class:`float`, shift the leftmost and rightmost edges of the bins
+        by this amount to avoid artefacts caused by the discretization of the input
+        field data.
+        If `True` (default), wether to shift and by which amount is determined using the
+        input metadata.
 
         Set to 0 or `False` to not shift bins.
     dims:
@@ -422,7 +414,7 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
     cache=True,
     target="parallel",
 )
-def _compute_components(
+def components_core(
     input_image: np.ndarray[tuple[int, ...], _DT],
     dummy: tuple[int, int, int],
     window_reach: np.ndarray[tuple[int], np.dtype[np.integer]],
