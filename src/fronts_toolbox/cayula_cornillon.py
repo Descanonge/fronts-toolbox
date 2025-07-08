@@ -610,7 +610,8 @@ def cayula_cornillon_core(
     Parameters
     ----------
     field:
-        Input SST values.
+        Input array. Invalid values must be marked as `np.nan` (this is the behavior of
+        Xarray: see :external+xarray:ref:`missing_values`).
     window_size:
         Length-2 sequence of ints giving the size of the moving-window. Must be in the
         same order as the data.
@@ -618,21 +619,23 @@ def cayula_cornillon_core(
         Length-2 sequence of ints giving the step of the moving-window. Must be in the
         same order as the data.
     bins_width:
-        Width of the bins used to construct the histogram when computing the
-        bimodality. Must have same units and same data type as the input array.
+        Width of the bins used to construct the histogram when computing the bimodality.
+        Must have same units and same data type as the input array.
     bins_shift:
-        If non-zero, shift the leftmost and rightmost edges of the bins by
-        this amount to avoid artefacts caused by the discretization of the
-        input field data.
+        If non-zero, shift the leftmost and rightmost edges of the bins by this amount
+        to avoid artefacts caused by the discretization of the input field data.
     bimodal_criteria:
         Criteria for determining if the distribution is bimodal or not.
+    output:
+        Output array.
     kwargs:
         See available kwargs for universal functions at
         :external+numpy:ref:`c-api.generalized-ufuncs`.
-    output:
-        Array of counting the number of fronts detected per pixel. This number can be
-        greater than one if the moving window overlaps itself (step is smaller than
-        size).
+
+    Returns
+    -------
+    Array of counting the number of fronts detected per pixel. This number can be
+    greater than one if the moving window overlaps itself (step is smaller than size).
     """
     ny, nx = field.shape
     size_y, size_x = window_size

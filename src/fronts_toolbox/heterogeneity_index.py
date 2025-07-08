@@ -428,30 +428,11 @@ def components_core(
 
         Users should rather use :func:`compute_components_numpy`.
 
-    This function is compiled and transformed into a Numpy generalized
-    universal function (see
-    :external+numpy:doc:`reference/c-api/generalized-ufuncs`), using the
-    :func:`numba.guvectorize` decorator. This means that any additional
-    dimensions in the input array will automatically be looped over.
-
-    *Numba options:*
-        ``nopython=True``, ``target='parallel'``, ``cache=True``.
-
-    *Signatures:*
-        - (float32[:, :], intp[:], intp[:], float64, float64, float32[:, :, :])
-        - (float64[:, :], intp[:], intp[:], float64, float64, float64[:, :, :])
-
-    This function does not compute the components along the edges of the
-    input image.
-
     Parameters
     ----------
     input_image:
-        Array of the input field from which to compute the HI components.
-        The last two dimensions of the array should correspond to the y and x
-        axis of the input field image (the order does not matter).
-        Invalid values must be marked as `np.nan` (this is the behavior of
-        Xarray: see :external+xarray:ref:`missing_values`).
+        Array of the input field. Invalid values must be marked as `np.nan` (this is the
+        behavior of Xarray: see :external+xarray:ref:`missing_values`).
     dummy:
         Dummy argument that must be of size 3 (corresponding to the number of
         components).
@@ -468,27 +449,24 @@ def components_core(
         `input_image` is ordered as ``[..., y, x]``, then `window_reach` must be ordered
         as ``[reach_y, reach_x]``.
     bins_width:
-        Width of the bins used to construct the histogram when computing the
-        bimodality. Must have same units and same data type as the input array.
+        Width of the bins used to construct the histogram when computing the bimodality.
+        Must have same units and same data type as the input array.
     bins_shift:
-        If non-zero, shift the leftmost and rightmost edges of the bins by
-        this amount to avoid artefacts caused by the discretization of the
-        input field data.
+        If non-zero, shift the leftmost and rightmost edges of the bins by this amount
+        to avoid artefacts caused by the discretization of the input field data.
+    output:
+        Output array.
+    kwargs:
+        See available kwargs for universal functions at
+        :external+numpy:ref:`c-api.generalized-ufuncs`.
 
     Returns
     -------
     components: NDArray
-        An array of the same size and datatype as the input one, with an
-        additional dimension at the end to separate the 3 components. The
-        components are in the following order: standard deviation, skewness,
-        and bimodality.
-
-    References
-    ----------
-    - Numpy GUFuncs: https://numpy.org/doc/stable/reference/c-api/generalized-ufuncs.html
-    - Numba.guvectorize (guide): https://numba.pydata.org/numba-doc/dev/user/vectorize.html#the-guvectorize-decorator
-    - Numba.guvectorize (API): https://numba.pydata.org/numba-doc/dev/reference/jit-compilation.html#numba.guvectorize
-    """  # noqa: E501, D205
+        An array of the same size and datatype as the input one, with an additional
+        dimension at the end to separate the 3 components. The components are in the
+        following order: standard deviation, skewness, and bimodality.
+    """
     window_reach_y, window_reach_x = window_reach
     img_size_y, img_size_x = input_image.shape
 
