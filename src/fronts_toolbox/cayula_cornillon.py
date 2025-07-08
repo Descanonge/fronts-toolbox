@@ -449,7 +449,7 @@ def count_neighbor(
 
     :returns: Array of T0, T1, R
     """
-    out = np.zeros(3, dtype=np.int8)
+    out = np.zeros(3, dtype=np.uint16)
     if invalid[*pixel] or invalid[*neighbor]:
         return out
     pixel_cluster = cluster[*pixel]
