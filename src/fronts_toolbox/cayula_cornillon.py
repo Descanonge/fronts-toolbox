@@ -586,7 +586,7 @@ def get_edges(
             nt.int64[:, :],
         ),
     ],
-    "(y,x),(w),(w),(),()->(y,x)",
+    "(y,x),(w),(w),(),(),()->(y,x)",
     nopython=True,
     cache=True,
 )
