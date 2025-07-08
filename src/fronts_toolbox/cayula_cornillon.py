@@ -113,7 +113,7 @@ def cayula_cornillon_numpy(
     func = cayula_cornillon_core(gufunc)
 
     if axes is not None:
-        kwargs["axes"] = get_axes_kwarg(func, axes, order="y,x")
+        kwargs["axes"] = get_axes_kwarg(func.signature, axes, order="y,x")
 
     return func(
         input_field,
@@ -188,7 +188,7 @@ def cayula_cornillon_dask(
     func = cayula_cornillon_core(gufunc)
 
     if axes is not None:
-        kwargs["axes"] = get_axes_kwarg(func, axes, order="y,x")
+        kwargs["axes"] = get_axes_kwarg(func.signature, axes, order="y,x")
 
     # Generate overlap if needed. ie if lon and/or lat dimensions are chunked, expand
     # each chunk with data from his neighbors to accomodate the sliding window.

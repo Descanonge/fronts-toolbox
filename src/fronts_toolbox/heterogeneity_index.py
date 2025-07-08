@@ -266,7 +266,7 @@ def components_xarray(
     # Order the window_size like the data
     window_size_seq = [window_size[d] for d in dims]
     # dimensions indices to send to subfunctions
-    axes = [input_field.get_axis_num(dims)]
+    axes = sorted(input_field.get_axis_num(dims))
 
     # I don't use xr.apply_ufunc because the dask function is quite complex
     # and cannot be dealt with only with dask.apply_gufunc (which is what
