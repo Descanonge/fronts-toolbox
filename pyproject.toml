@@ -64,7 +64,7 @@ exclude = ['^doc/extensions', '^tests']
 
 [tool.ruff]
 line-length = 88
-target-version = 'py312'
+target-version = 'py311'
 extend-exclude = ['doc/extensions/*.py', 'doc/conf.py', 'tests']
 
 [tool.ruff.lint]
