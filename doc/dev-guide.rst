@@ -63,8 +63,8 @@ the input to the correct function, you can define a :class:`.util.Dispatcher`::
 
 .. note::
 
-    No all mappers need to contain an implementation for every possible type.
-    The mapper will give appropriate an message error if a input type is
+    Not all mappers need to contain an implementation for every possible type.
+    The mapper will give appropriate an message error if an input type is
     unsupported, or if the needed library is not installed.
 
 
@@ -81,7 +81,6 @@ python loops, or alternatively compile your core function with `Numba
 If your function can be expressed in vectorized numpy functions, you may be able
 to transform your Python function into a universal function with
 :func:`numpy.frompyfunc`.
-
 Otherwise, using :external+numba:func:`numba.guvectorize` allows to easily
 create a generalized universal function. This ensures that your computations
 will be properly vectorized and that it deals nicely with broadcasting and type
@@ -146,12 +145,9 @@ the simplest (see :external+numpy:doc:`reference/ufuncs`).
 
 I suggest here to simplify things for the user. They only have to supply
 a sequence of indices (or of dimensions for xarray). It then is accommodated to
-the gufunc.
-
-.. note::
-
-    The operation depends on the signature of the function.
-
+the gufunc. The function :func:`.util.get_axes_kwarg` will automatically try to
+do that. For example for a ufunc *function* whose core axes are specified as
+"y,x" in its signature.
 
 .. tab-set::
 
@@ -169,8 +165,7 @@ the gufunc.
                         None (default), the last two axes are used.
                 """
                 if axes is not None:
-                    # (y,x)->(y,x)
-                    kwargs["axes"] = [tuple(axes), tuple(axes)]
+                    kwargs["axes"] = get_axes_kwarg(function.signature, "y,x")
 
                 # kwargs is then passed to the compiled gufunc
 
@@ -195,7 +190,7 @@ the gufunc.
                 if dims is None:
                     dims = DEFAULT_DIMS
 
-                axes = sorted([input_field._get_axis_num(d) for d in dims])
+                axes = dims = [d for d in input_field.dims if d in dims]
 
                 # axes can then be passed to the Numpy or Dask function
 

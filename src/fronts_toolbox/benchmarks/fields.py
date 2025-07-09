@@ -30,6 +30,9 @@ except ImportError:
 rng = np.random.default_rng()
 
 
+## Idealized fields
+
+
 def blobby_gradient(
     n_grid: int = 512, n_blobs: int = 800, max_blob_size: int = 7
 ) -> NDArray:
@@ -124,6 +127,9 @@ def ideal_jet(n_grid: int = 512) -> NDArray:
     return sst
 
 
+## Noise
+
+
 def add_spikes(field: NDArray, n_spikes: int | None = None) -> NDArray:
     """Add single pixels spikes to field."""
     if n_spikes is None:
@@ -149,6 +155,13 @@ def swap_noise(field: NDArray, n_swap: int | None = None, len_swap: int = 3) -> 
         out[*a] = out[*b]
     return out
 
+
+def add_noise(field: NDArray, amplitude: float = 1e-2) -> NDArray:
+    noise = rng.normal(size=field.shape)
+    return field + amplitude * noise
+
+
+## Real data samples
 
 if has_pooch:
     REGISTRY = pooch.create(
