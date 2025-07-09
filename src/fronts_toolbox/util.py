@@ -242,13 +242,13 @@ class Dispatcher:
         if isinstance(array, np.ndarray):
             return self.get("numpy")
 
-        if module_available("dask"):
+        if "dask" in self.functions and module_available("dask"):
             import dask.array as da
 
             if isinstance(array, da.Array):
                 return self.get("dask")
 
-        if module_available("xarray"):
+        if "xarray" in self.functions and module_available("xarray"):
             import xarray as xr
 
             if isinstance(array, xr.DataArray | xr.Dataset):
