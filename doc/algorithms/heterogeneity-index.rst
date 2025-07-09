@@ -82,6 +82,8 @@ Finally, to bound somewhat the range of HI values, we apply a final coefficient
    HI = d \left( aσ + bγ + dB \right)
 
 
+.. _bins-shift:
+   
 Linear packing and shifting histogram bins
 ==========================================
 
@@ -132,10 +134,10 @@ References
                 the Gulf Stream region”, *Biogeosciences* **20**, 1741–1758,
                 DOI:`10.5194/bg-20-1741-2023 <https://doi.org/10.5194/bg-20-1741-2023>`__,
                 2023.
-.. |haeck_2023| replace:: Haëck et al. 2023
+.. |haeck_2023| replace:: Haëck et al. (2023)
 
 .. [liu_2016] Liu, X. and Levine, N. M.: “Enhancement of phytoplankton
               chlorophyll by submesoscale frontal dynamics in the North Pacific
               Subtropical Gyre”, *Geophys. Res. Lett.* **43**, 1651–1659,
               DOI:`10.1002/2015gl066996 <https://doi.org/10.1002/2015gl066996>`__, 2016.
-.. |liu_2016| replace:: Liu & Levine 2016
+.. |liu_2016| replace:: Liu & Levine (2016)

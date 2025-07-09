@@ -437,7 +437,7 @@ def components_core(
         We need to have a single output array for when using Dask (thus with an
         additional dimension for the 3 components), but
         :func:`numba.guvectorize` needs all the dimensions to be defined in the
-        input variables. Details in :ref:`/implementation_details.rst`.
+        input variables.
     window_reach:
         Reach of the window for each axis (y, x).
         The 'reach' is the number of pixels between the center pixel and the
