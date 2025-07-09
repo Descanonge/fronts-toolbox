@@ -431,7 +431,7 @@ def count_neighbor(
     invalid: np.ndarray[tuple[int, int], np.dtype[np.bool]],
     pixel: tuple[int, int],
     neighbor: tuple[int, int],
-) -> np.ndarray[tuple[int], np.dtype[np.int8]]:
+) -> np.ndarray[tuple[int], np.dtype[np.uint16]]:
     """Count one neighbor.
 
     Parameters
@@ -468,16 +468,16 @@ def count_neighbor(
 )
 def cohesion(
     cluster: np.ndarray[tuple[int, int], np.dtype[np.int8]],
-    invalid: np.ndarray[tuple[int, int], np.dtype[np.bool]],
+    valid: np.ndarray[tuple[int, int], np.dtype[np.bool]],
 ) -> bool:
     """Check the cohesion of the two clusters.
 
-    I count T0 and T1 as valid neighbors count. I consider that R0 = R1 = R.
-
     Criteria for cohesion is hardcoded at:
+
     .. math::
 
         C1, C2 > 0.92
+
         C > 0.90
 
     Parameters
@@ -485,47 +485,51 @@ def cohesion(
     cluster:
         Array giving the cluster index (0 or 1 for cold/warm). Size of the moving
         window.
-    invalid:
-        Mask of the moving window. True is invalid value.
+    valid:
+        Mask of the moving window. True is valid value.
 
 
     :returns: True if the clusters are spatially coherent.
     """
     ny, nx = cluster.shape
 
-    # array of number of valid neighbors (for each cluster)
-    # and number of neighbors with different clusters
-    count = np.zeros(3, dtype=np.uint16)
+    # number of valid neighbors
+    t1 = 0
+    t2 = 0
+    # number of neighbors of same cluster
+    r1 = 0
+    r2 = 0
 
-    # Bottom neighbor
-    for iy in range(1, ny):
-        for ix in range(0, nx):
-            count += count_neighbor(cluster, invalid, (iy, ix), (iy - 1, ix))
-    # Top neighbor
-    for iy in range(0, ny - 1):
-        for ix in range(0, nx):
-            count += count_neighbor(cluster, invalid, (iy, ix), (iy + 1, ix))
-    # Left neighbor
-    for iy in range(0, ny):
-        for ix in range(1, nx):
-            count += count_neighbor(cluster, invalid, (iy, ix), (iy, ix - 1))
-    # Right neighbor
-    for iy in range(0, ny):
-        for ix in range(0, nx - 1):
-            count += count_neighbor(cluster, invalid, (iy, ix), (iy, ix + 1))
+    for iy in prange(0, ny - 1):
+        for ix in prange(0, nx - 1):
+            if not valid[iy, ix]:
+                continue
+            s = 0
+            count = 0
 
-    t0, t1, r = count
+            # right
+            if valid[iy, ix + 1]:
+                s += cluster[iy, ix + 1]
+                count += 1
+            # bottom
+            if valid[iy + 1, ix]:
+                s += cluster[iy + 1, ix]
+                count += 1
 
-    if t0 == 0 or t1 == 0:
-        return False
+            if cluster[iy, ix]:
+                t2 += count
+                r2 += s
+            else:
+                t1 += count
+                r1 += count - s
 
     # cohesion measures
-    c1 = r / t0
-    c2 = r / t1
-    c = r / (t0 + t1)
+    c1 = r1 / t1
+    c2 = r2 / t2
+    c = (r1 + r2) / (t1 + t2)
 
     # convert from np.bool to builtins.bool
-    return bool(c1 > 0.92 and c2 > 0.92 and c > 0.90)
+    return c1 > 0.92 and c2 > 0.92 and c > 0.90
 
 
 @jit(
@@ -660,7 +664,7 @@ def cayula_cornillon_core(
             window = field[slice_y, slice_x]
             window_valid = valid[slice_y, slice_x]
             cluster = (window < threshold).astype(np.int8)
-            if not cohesion(cluster, ~window_valid):
+            if not cohesion(cluster, window_valid):
                 continue
 
             window_edges = get_edges(cluster, ~window_valid)
