@@ -405,8 +405,10 @@ def get_threshold(
         x1 = bins[:threshold_i]
         x2 = bins[threshold_i:-1]
 
-        n1 = np.sum(hist1) * 1.0
-        n2 = np.sum(hist2) * 1.0
+        n1 = np.sum(hist1)
+        n2 = np.sum(hist2)
+        if n1 == 0 or n2 == 0:
+            continue
         avg1 = np.sum(x1 * hist1) / n1
         avg2 = np.sum(x2 * hist2) / n2
 
