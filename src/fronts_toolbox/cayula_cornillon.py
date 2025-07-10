@@ -652,9 +652,9 @@ def cayula_cornillon_core(
 
     output[:] = 0
 
-    for pixel_y in prange(size_y // 2, ny - size_y // 2, step_y):
+    for pixel_y in prange(size_y, ny - size_y, step_y):
         slice_y = slice(pixel_y, pixel_y + size_y)
-        for pixel_x in prange(size_x // 2, nx - size_x // 2, step_x):
+        for pixel_x in prange(size_x, nx - size_x, step_x):
             slice_x = slice(pixel_x, pixel_x + size_x)
             window_flat = field[slice_y, slice_x].flatten()
             window_mask_flat = valid[slice_y, slice_x].flatten()
