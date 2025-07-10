@@ -40,7 +40,7 @@ is not a Mapping.
 
 def _get_window_args(
     window_size: int | Sequence[int], window_step=int | Sequence[int] | None
-) -> tuple:
+) -> tuple[Sequence[int], Sequence[int]]:
     if isinstance(window_size, int):
         window_size = [window_size] * 2
 
@@ -182,6 +182,9 @@ def cayula_cornillon_dask(
     import dask.array as da
 
     window_size, window_step = _get_window_args(window_size, window_step)
+
+    if bins_width == 0.0:
+        raise ValueError("bins_width cannot be 0.")
 
     func = cayula_cornillon_core(gufunc)
 
