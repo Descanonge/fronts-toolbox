@@ -156,6 +156,24 @@ def swap_noise(field: NDArray, n_swap: int | None = None, len_swap: int = 3) -> 
     return out
 
 
+def swap_noise_higher(
+    field: NDArray, n_swap: int | None = None, len_swap: int = 3
+) -> NDArray:
+    """Add noise by swapping pixel (only towards higher values)."""
+    """Add noise by swapping pixels."""
+    if n_swap is None:
+        n_swap = field.shape[0] ** 2
+    out = field.copy()
+    xy_a = rng.integers(0, field.shape, (n_swap, 2))
+    xy_b = xy_a + rng.integers(-len_swap, len_swap, (n_swap, 2))
+    xy_b = np.clip(xy_b, 0, np.asarray(field.shape) - 1)
+    for a, b in zip(xy_a, xy_b, strict=False):
+        m = max(out[*a], out[*b])
+        out[*a] = m
+        out[*b] = m
+    return out
+
+
 def add_noise(field: NDArray, amplitude: float = 1e-2) -> NDArray:
     noise = rng.normal(size=field.shape)
     return field + amplitude * noise
