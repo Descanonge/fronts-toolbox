@@ -70,24 +70,56 @@ the input to the correct function, you can define a :class:`.util.Dispatcher`::
 
 .. _dev-numba:
 
-Numba and generalized functions
-===============================
+Generalized functions
+=====================
+
+Front detection algorithms and filters will typically work on a 2D image, but
+it is useful to accomodate additional dimensions (like time for instance).
+This necessites dealing with looping over those dimensions and specifying axes
+placement.
+
+For Numpy, if you intend to compile your function with Numba, using
+:func:`numba.guvectorize` gives a generalized universal function with trivialize
+the matter (see below).
+Otherwise there is sadly no easy way; :class:`numpy.vectorize` and
+:func:`numpy.frompyfunc` are meant for universal functions (not generalized).
+See `issue #14020 <https://github.com/numpy/numpy/issues/14020>`__.
+
+Dask `handles generalized
+ufuncs <https://docs.dask.org/en/latest/array-gufunc.html>`__ gracefully and allows
+to convert a Python function to a generalized ufunc with
+:class:`~dask.array.gufunc.gufunc` and :func:`~dask.array.gufunc.as_gufunc`.
+This onlys works for Dask arrays though.
+
+Computations with moving windows will either need to avoid chunking along the
+core dimensions or deal with
+[overlap](https://docs.dask.org/en/latest/array-overlap.html).
+
+Xarray handles any function working on Numpy arrays with
+:func:`xarray.apply_ufunc`. If there is a need to use a specialized Dask
+function − to handle overlap for instance − you can apply the function directly
+to the underlying data. A :class:`.util.Dispatcher` can help selecting the
+function depending on the input type::
+
+    func = my_dispatcher.get_func(input)
+    output = func(input, **kwargs)
+    arr = xr.DataArray(output, ...)
+
+Compiling with Numba
+====================
 
 The goal of this library is to provide computationally efficient tools, that can
 easily scale on large datasets. Please write your core function to avoid pure
 python loops, or alternatively compile your core function with `Numba
 <https://numba.pydata.org/>`__.
 
-If your function can be expressed in vectorized numpy functions, you may be able
-to transform your Python function into a universal function with
-:func:`numpy.frompyfunc`.
-Otherwise, using :external+numba:func:`numba.guvectorize` allows to easily
-create a generalized universal function. This ensures that your computations
-will be properly vectorized and that it deals nicely with broadcasting and type
+Uing :external+numba:func:`numba.guvectorize` allows to easily create a
+generalized universal function. This ensures that your computations will be
+properly vectorized and that it deals nicely with broadcasting and type
 conversion.
 
 Note that when using ``guvectorize`` with ``target="parallel"`` and
-``cache=True`` the import is quite slow (see `issue#8085
+``cache=True`` the import is quite slow (see `issue #8085
 <https://github.com/numba/numba/issues/8085>`__). To avoid this, you can use
 :func:`.util.guvectorize_lazy`. This decorator takes all the arguments of
 ``guvectorize``, and returns a function that, when called, will compile as
