@@ -54,6 +54,7 @@ tests = [
     'xarray-histogram',
     # canny
     'scikit-image',
+    # 'scipy',
 ]
 
 

@@ -54,6 +54,8 @@ def plot(
     return fig
 
 
+## Gallery
+
 if __name__ == "__main__":
     ## Ideal jet
 
@@ -110,5 +112,3 @@ if __name__ == "__main__":
     hi = apply_coefficients(components, coefs)
 
     plot(sst, components, hi, "CCI/C3S L4")
-
-    plt.show()

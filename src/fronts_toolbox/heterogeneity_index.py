@@ -17,6 +17,7 @@ from fronts_toolbox.util import (
     detect_bins_shift,
     dims_help,
     doc,
+    get_axes_kwarg,
     get_dims_and_window_size,
     get_window_reach,
     guvectorize_lazy,
@@ -92,20 +93,15 @@ def components_numpy(
         kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
     func = components_core(gufunc)
-    output = func(
+    components = func(
         input_field,
-        list(range(3)),  # dummy argument of size 3, needed to accomadate dask
         window_reach,
         bins_width,
         bins_shift,
         **kwargs,
     )
 
-    stdev = output[..., 0]
-    skew = output[..., 1]
-    bimod = output[..., 2]
-
-    return stdev, skew, bimod
+    return components
 
 
 @doc(_components_doc, input_field_type="dask.array.Array", rtype="dask.array.Array")
@@ -126,45 +122,43 @@ def components_dask(
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
 
-    # Generate overlap if needed. ie if lon and/or lat dimensions are chunked, expand
-    # each chunk with data from his neighbors to accomodate the sliding window.
-    # The array outer edges are not expanded (boundary='none')
-    ndim = input_field.ndim
-    depth = {ndim - 2: window_reach_y, ndim - 1: window_reach_x}
-    overlap = da.overlap.overlap(input_field, depth=depth, boundary="none")
-
-    if axes is not None:
-        # (y,x),(c),(w),(),()->(y,x,c)
-        kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
+    if axes is None:
+        axes = [-2, -1]
 
     func = components_core(gufunc)
 
-    # Do the computation for each chunk separately. All consideration of sharing
-    # edges is dealt with by the overlap.
-    output = da.map_blocks(
-        func,
-        # arguments to the function
+    # Dask only accepts functions with a single output. We wrap the core function
+    def components_stacked(*args, **kwargs):
+        components = func(
+            *args, (window_reach_x, window_reach_y), bins_width, bins_shift, **kwargs
+        )
+        return np.stack(components)
+
+    depth = {axes[0]: window_reach_y, axes[1]: window_reach_x}
+    kwargs["axes"] = get_axes_kwarg(func.signature, axes)
+
+    # We separate the overlap workflow because the trim is not happening on the same
+    # axes as the input (there is an additional axis for components)
+    overlap = da.overlap.overlap(input_field, depth=depth, boundary="none")
+
+    components = da.map_blocks(
+        components_stacked,
         overlap,
-        list(range(3)),  # dummy argument of size 3
-        (window_reach_x, window_reach_y),
-        bins_width,
-        bins_shift,
-        **kwargs,
-        # metadata to deal with additional axis for components, and also I don't
-        # trust automatic inference
-        new_axis=ndim,
+        # output
+        dtype=input_field.dtype,
         meta=np.array((), dtype=input_field.dtype),
-        chunks=tuple([*overlap.chunks, 3]),
+        new_axis=0,
+        chunks=tuple([3, *overlap.chunks]),
+        # kwargs to the function
+        **kwargs,
     )
 
-    # Trim back the expanded chunks
-    output = da.overlap.trim_internal(output, depth)
+    # need to add one to the axes indices since we added a new dimension at index 0
+    components = da.overlap.trim_internal(
+        components, {i + 1: d for i, d in depth.items()}, boundary="none"
+    )
 
-    stdev = output[..., 0]
-    skew = output[..., 1]
-    bimod = output[..., 2]
-
-    return stdev, skew, bimod
+    return tuple(components[:])
 
 
 components_dispatcher = Dispatcher(
@@ -354,21 +348,38 @@ def get_components_from_values(
 
 @guvectorize_lazy(
     [
-        "(float32[:, :], intp[:], intp[:], float64, float64, float32[:, :, :])",
-        "(float64[:, :], intp[:], intp[:], float64, float64, float64[:, :, :])",
+        (
+            nt.float32[:, :],
+            nt.int64[:],
+            nt.float64,
+            nt.float64,
+            nt.float32[:, :],
+            nt.float32[:, :],
+            nt.float32[:, :],
+        ),
+        (
+            nt.float64[:, :],
+            nt.int64[:],
+            nt.float64,
+            nt.float64,
+            nt.float64[:, :],
+            nt.float64[:, :],
+            nt.float64[:, :],
+        ),
     ],
-    "(y,x),(c),(w),(),()->(y,x,c)",
+    "(y,x),(w),(),()->(y,x),(y,x),(y,x)",
     nopython=True,
     cache=True,
     target="parallel",
 )
 def components_core(
     input_image: np.ndarray[tuple[int, int], _DT],
-    dummy: np.ndarray[tuple[int], np.dtype[np.integer]],
     window_reach: np.ndarray[tuple[int], np.dtype[np.integer]],
     bins_width: float,
     bins_shift: float,
-    output: np.ndarray[tuple[int, int], _DT],
+    stdev: np.ndarray[tuple[int, int], _DT],
+    skew: np.ndarray[tuple[int, int], _DT],
+    bimod: np.ndarray[tuple[int, int], _DT],
 ):
     """Compute HI components from input field image.
 
@@ -419,7 +430,9 @@ def components_core(
     # max number of pixel inside the moving window
     win_npixels = np.prod(2 * window_reach + 1)
 
-    output[:] = np.nan
+    stdev[:] = np.nan
+    skew[:] = np.nan
+    bimod[:] = np.nan
 
     mask = np.isfinite(input_image)
 
@@ -443,9 +456,12 @@ def components_core(
 
             # pass the array of values (we use ravel to make sure it is
             # contiguous in memory)
-            output[target_y, target_x, :] = get_components_from_values(
+            stdev_win, skew_win, bimod_win = get_components_from_values(
                 np.ravel(win_values_filtered), bins_width, bins_shift
             )
+            stdev[target_y, target_x] = stdev_win
+            skew[target_y, target_x] = skew_win
+            bimod[target_y, target_x] = bimod_win
 
 
 ## Normalization
