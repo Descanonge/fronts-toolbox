@@ -53,6 +53,8 @@ otherwise, the window size can be given as:
 .. toctree::
    :caption: Front detection
 
+   canny
+
    cayula-cornillon
 
    heterogeneity-index
