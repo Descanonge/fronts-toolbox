@@ -44,6 +44,10 @@ def canny_core(
     """Canny edge-detector.
 
     Copied from :func:`skimage.feature.canny`.
+
+    .. warning:: Internal function.
+
+        Users should rather use :func:`canny_numpy`.
     """
     # Regarding masks, any point touching a masked point will have a gradient
     # that is "infected" by the masked point, so it's enough to erode the
@@ -177,14 +181,20 @@ def canny_dask(
     """Apply Canny Edge Detector."""
     import dask.array as da
 
-    # expand blocks by one for gaussian filter
+    # expand blocks by one for gradient
+    if axes is None:
+        axes = [-2, -1]
+    depth = {axes[0]: 1, axes[1]: 1}
     output = da.map_overlap(
         canny_numpy,
         input_field,
-        depth=1,
+        # overlap
+        depth=depth,
         boundary="none",
+        # output
         dtype=np.bool,
         meta=np.array((), dtype=np.bool),
+        # kwargs for function
         hysteresis=hysteresis,
         low_threshold=low_threshold,
         high_threshold=high_threshold,
