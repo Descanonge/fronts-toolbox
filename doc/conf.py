@@ -69,6 +69,8 @@ intersphinx_mapping = {
     "numba": ("https://numba.readthedocs.io/en/stable", None),
     "python": ("https://docs.python.org/3/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "skimage": ("https://scikit-image.org/docs/stable", None),
+    "xarray_histogram": ("https://xarray-histogram.readthedocs.io/en/stable", None),
 }
 
 ## Options for HTML output

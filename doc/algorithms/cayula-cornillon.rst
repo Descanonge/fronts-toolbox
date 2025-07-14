@@ -6,21 +6,16 @@ Cayula-Cornillon
 A classical front detection method looking at the field's bimodality in a
 moving-window. Based on |cayula_1992|_.
 
-:Input types supported:
-    - Numpy
-    - Dask
-    - Xarray
+.. important::
+
+   This only implements the histogram analysis and cohesion check. This does not
+   include the cloud detection or contour following.
 
 .. note::
 
     Showcase/benchmark with::
 
         python -m fronts_toolbox.benchmarks.cayula_cornillon
-
-.. important::
-
-   This only implements the histogram analysis and cohesion check. This does not
-   include the cloud detection or contour following.
 
 Definition
 ==========
@@ -108,12 +103,32 @@ can thus exceed one, and fronts can be wider than one pixel.
     By default, the window steps are equal to its size, so there is no overlap.
     However the detected fronts can be sensitive to the window placement.
 
+Functions
+=========
+
+Detect fronts:
+
+- :func:`~.cayula_cornillon.cayula_cornillon_numpy`
+- :func:`~.cayula_cornillon.cayula_cornillon_dask`
+- :func:`~.cayula_cornillon.cayula_cornillon_xarray`
+
+Supported types and requirements
+================================
+
+**Supported input types:** Numpy, Dask, Xarray
+
+**Requirements:**
+
+- numpy
+- numba
+
+
 References
 ==========
 
 .. [cayula_1992] Cayula J.-F., Cornillon P. “Edge Detection Algorithm for SST
-         Images”. *J. Atmos. Oceanic Tech.* **9.1** (1992-02-01), p. 67-80.
+         Images”. **J. Atmos. Oceanic Tech.* **9.1**, p. 67-80,
          DOI:`10.1175/1520-0426(1992)009<0067:edafsi>2.0.co;2
-         <https://doi.org/10.1175/1520-0426(1992)009%3c0067:edafsi%3e2.0.co;2>`__
-
+         <https://doi.org/10.1175/1520-0426(1992)009%3c0067:edafsi%3e2.0.co;2>`__,
+         1992
 .. |cayula_1992| replace:: Cayula & Cornillon (1992)

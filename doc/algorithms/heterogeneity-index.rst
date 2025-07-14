@@ -6,11 +6,6 @@ Heterogeneity-index
 An index reflecting the heterogeneity of the input field (typically SST).
 It was first proposed by |liu_2016|_ and then updated by |haeck_2023|_.
 
-:Input types supported:
-    - Numpy
-    - Dask
-    - Xarray
-
 .. note::
 
     Showcase/benchmark with::
@@ -47,7 +42,7 @@ Components
 
 3) Bimodality (noted B)
     The principle behind this component is very much similar to that of the
-    Cayula & Cornillon algorithm [CCA]_.
+    Cayula & Cornillon algorithm (CCA).
     Because we use relatively small windows (and thus have few input field
     values to construct an histogram), the CCA method might be difficult to
     apply. We instead do the following:
@@ -114,30 +109,56 @@ nothing is found a warning will be emitted. The information is contained in the
 *metadata* attribute, in the key "encoding". This information can be lost if
 the data-array undergoes some modifications.
 
-Requirements
-============
+Functions
+=========
 
-None for computation of the components. Obtaining the normalization coefficient
-for HI requires `xarray-histogram
-<https://pypi.org/project/xarray-histogram/>`__ and scipy.
+- Compute the HI components:
+
+  - :func:`~.heterogeneity_index.components_numpy`
+  - :func:`~.heterogeneity_index.components_dask`
+  - :func:`~.heterogeneity_index.components_xarray`
+
+- Compute the normalization coefficients:
+
+  - :func:`~.heterogeneity_index.coefficients_components_numpy`
+  - :func:`~.heterogeneity_index.coefficients_components_dask`
+  - :func:`~.heterogeneity_index.coefficients_components_xarray`
+  - :func:`~.heterogeneity_index.coefficients_components`
+  - :func:`~.heterogeneity_index.coefficient_hi_numpy`
+  - :func:`~.heterogeneity_index.coefficient_hi_dask`
+  - :func:`~.heterogeneity_index.coefficient_hi_xarray`
+  - :func:`~.heterogeneity_index.coefficient_hi`
+
+- Compute the HI from the components and normalization coefficients:
+
+  - :func:`~.heterogeneity_index.apply_coefficients`
+
+Supported types and requirements
+================================
+
+**Supported input types:** Numpy, Dask, Xarray
+
+**Requirements:**
+
+- numpy
+- numba
+- scipy for computing the HI normalization coefficient
+- `xarray-histogram <github.com/Descanonge/xarray-histogram>`__ for computing
+  the HI normalization coefficient for Xarray data.
 
 References
 ==========
 
-.. [CCA] Cayula J.-F., Cornillon P. “Edge Detection Algorithm for SST
-         Images”. *J. Atmos. Oceanic Tech.* **9.1** (1992-02-01), p. 67-80.
-         DOI:`10.1175/1520-0426(1992)009<0067:edafsi>2.0.co;2
-         <https://doi.org/10.1175/1520-0426(1992)009%3c0067:edafsi%3e2.0.co;2>`__
-
 .. [haeck_2023] Haëck, C., Lévy, M., Mangolte, I., and Bopp, L.: “Satellite data
-                reveal earlier and stronger phytoplankton blooms over fronts in
-                the Gulf Stream region”, *Biogeosciences* **20**, 1741–1758,
-                DOI:`10.5194/bg-20-1741-2023 <https://doi.org/10.5194/bg-20-1741-2023>`__,
-                2023.
+        reveal earlier and stronger phytoplankton blooms over fronts in the Gulf
+        Stream region”, *Biogeosciences* **20**, 1741–1758,
+        DOI:`10.5194/bg-20-1741-2023
+        <https://doi.org/10.5194/bg-20-1741-2023>`__, 2023.
 .. |haeck_2023| replace:: Haëck et al. (2023)
 
 .. [liu_2016] Liu, X. and Levine, N. M.: “Enhancement of phytoplankton
-              chlorophyll by submesoscale frontal dynamics in the North Pacific
-              Subtropical Gyre”, *Geophys. Res. Lett.* **43**, 1651–1659,
-              DOI:`10.1002/2015gl066996 <https://doi.org/10.1002/2015gl066996>`__, 2016.
+        chlorophyll by submesoscale frontal dynamics in the North Pacific
+        Subtropical Gyre”, *Geophys. Res. Lett.* **43**, 1651–1659,
+        DOI:`10.1002/2015gl066996
+        <https://doi.org/10.1002/2015gl066996>`__, 2016.
 .. |liu_2016| replace:: Liu & Levine (2016)
