@@ -1,6 +1,8 @@
 """Benchmark for Canny edge detector."""
 
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy.ndimage as ndi
 from matplotlib.colors import ListedColormap
 
 from fronts_toolbox.benchmarks.fields import add_spikes, ideal_jet, sample, swap_noise
@@ -22,7 +24,10 @@ def plot_one(sst, fronts, title: str, **input_kwargs) -> plt.Figure:
 
     return fig
 
-    # if __name__ == "__main__":
+
+## gallery
+
+if __name__ == "__main__":
     ## Ideal jet
 
     sst = ideal_jet()
@@ -50,6 +55,44 @@ def plot_one(sst, fronts, title: str, **input_kwargs) -> plt.Figure:
 
     ## Sample CCI/C3S
 
-    sst = sample("ESA-CCI-C3S").analysed_sst.sel(lat=slice(15, 55), lon=slice(-82, -40))
-    fronts = canny_xarray(sst, sigma=3)
-    plot_one(sst[0], fronts[0], "CCI/C3S L4")
+    sst = (
+        sample("ESA-CCI-C3S")
+        .analysed_sst.isel(time=0)
+        .sel(lat=slice(15, 55), lon=slice(-82, -40))
+    )
+    fronts = canny_xarray(sst)
+    plot_one(sst, fronts, "CCI/C3S L4")
+
+    ## Example of front strength
+
+    sst = (
+        sample("ESA-CCI-C3S")
+        .analysed_sst.isel(time=0)
+        .sel(lat=slice(15, 55), lon=slice(-82, -40))
+    )
+    fronts = canny_numpy(sst)
+
+    jsobel = ndi.sobel(sst, axis=-2)
+    isobel = ndi.sobel(sst, axis=-1)
+    magnitude = np.sqrt(isobel * isobel + jsobel * jsobel)
+    # we look at the gradient magnitude in a 3x3 window around detected fronts
+    magnitude = ndi.median_filter(magnitude, size=3)
+    mask = ndi.binary_dilation(fronts, iterations=3)
+    fronts_strength = np.zeros_like(sst)
+    fronts_strength[mask] = magnitude[mask]
+    fronts_strength[~np.isfinite(sst)] = np.nan
+
+    fig, axes = plt.subplots(
+        1, 2, figsize=(6, 3), layout="constrained", dpi=150, sharex=True, sharey=True
+    )
+    ax1, ax2 = axes
+
+    im_kw = dict(origin="lower")
+
+    ax1.imshow(sst, cmap="inferno", **im_kw)
+    ax1.set_title("ESA-CCI-C3S SST", weight="bold")
+    ax2.imshow(fronts_strength, cmap="viridis", **im_kw)
+    ax2.set_title("Front strenght", weight="bold")
+
+    for ax in axes:
+        ax.tick_params(labelleft=False, labelbottom=False)
