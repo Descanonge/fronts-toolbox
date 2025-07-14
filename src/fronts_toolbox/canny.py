@@ -98,15 +98,15 @@ def canny_core(
         isobel, jsobel, magnitude, eroded_mask, low_threshold
     )
 
+    low_mask = low_masked > 0
+
     if not hysteresis:
-        return low_masked > 0
+        return low_mask
 
     # Double thresholding and edge tracking
     #
     # Segment the low-mask, then only keep low-segments that have
     # some high_mask component in them
-    #
-    low_mask = low_masked > 0
     strel = np.ones((3, 3), bool)
     labels, count = ndi.label(low_mask, strel)
     if count == 0:
