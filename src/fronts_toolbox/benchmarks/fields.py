@@ -13,7 +13,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pooch
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
