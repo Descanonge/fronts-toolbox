@@ -88,11 +88,10 @@ def components_numpy(
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
 
-    if axes is not None:
-        # (y,x),(c),(w),(),()->(y,x,c)
-        kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
-
     func = components_core(gufunc)
+    if axes is not None:
+        kwargs["axes"] = get_axes_kwarg(func.signature, axes)
+
     components = func(
         input_field,
         window_reach,
@@ -117,25 +116,15 @@ def components_dask(
     """Compute components from Dask array."""
     import dask.array as da
 
-    window_reach_x, window_reach_y = get_window_reach(window_size)
-
-    if bins_width == 0.0:
-        raise ValueError("bins_width cannot be 0.")
+    # Dask only accepts functions with a single output
+    def components_stacked(*args, **kwargs):
+        components = components_numpy(*args, **kwargs)
+        return np.stack(components)
 
     if axes is None:
         axes = [-2, -1]
-
-    func = components_core(gufunc)
-
-    # Dask only accepts functions with a single output. We wrap the core function
-    def components_stacked(*args, **kwargs):
-        components = func(
-            *args, (window_reach_x, window_reach_y), bins_width, bins_shift, **kwargs
-        )
-        return np.stack(components)
-
+    window_reach_x, window_reach_y = get_window_reach(window_size)
     depth = {axes[0]: window_reach_y, axes[1]: window_reach_x}
-    kwargs["axes"] = get_axes_kwarg(func.signature, axes)
 
     # We separate the overlap workflow because the trim is not happening on the same
     # axes as the input (there is an additional axis for components)
@@ -150,6 +139,9 @@ def components_dask(
         new_axis=0,
         chunks=tuple([3, *overlap.chunks]),
         # kwargs to the function
+        window_size=window_size,
+        bins_width=bins_width,
+        bins_shift=bins_shift,
         **kwargs,
     )
 
