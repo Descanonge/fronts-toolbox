@@ -162,6 +162,7 @@ components_dispatcher = Dispatcher(
 
 @doc(
     _components_doc,
+    remove=["axes"],
     input_field_type="xarray.DataArray",
     rtype="xarray.DataArray",
     window_size="""\
