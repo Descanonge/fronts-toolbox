@@ -46,7 +46,10 @@ def plot_one(sst, fronts, title: str, **kwargs) -> plt.Figure:
 
     return fig
 
-    # if __name__ == "__main__":
+
+## Gallery
+
+if __name__ == "__main__":
     ## Ideal jet
 
     sst = ideal_jet()
@@ -84,7 +87,6 @@ def plot_one(sst, fronts, title: str, **kwargs) -> plt.Figure:
     plot(sst, fronts, "MODIS L3M with overlap")
 
     ## Sample CCI/C3S
-
     sst = (
         sample("ESA-CCI-C3S")
         .analysed_sst.isel(time=0)

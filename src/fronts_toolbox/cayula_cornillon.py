@@ -142,41 +142,35 @@ def cayula_cornillon_dask(
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
 
-    func = cayula_cornillon_core(gufunc)
+    if axes is None:
+        axes = [-2, -1]
+    # we add a full window to the overlap only on one side. Possibly overkill but
+    # computing exactly what we may miss depending on the window size, the block size,
+    # and the window step is complicated.
+    depth = {axes[0]: (0, window_size[0]), axes[1]: (0, window_size[1])}
 
-    if axes is not None:
-        kwargs["axes"] = get_axes_kwarg(func.signature, axes, order="y,x")
-
-    # Generate overlap if needed. ie if lon and/or lat dimensions are chunked, expand
-    # each chunk with data from his neighbors to accomodate the sliding window.
-    # The array outer edges are not expanded (boundary='none')
-    window_reach_y, window_reach_x = get_window_reach(window_size)
-    ndim = input_field.ndim
-    depth = {ndim - 2: window_reach_y, ndim - 1: window_reach_x}
-    overlap = da.overlap.overlap(input_field, depth=depth, boundary="none")
-
-    # Do the computation for each chunk separately. All consideration of sharing
-    # edges is dealt with by the overlap.
-    output = da.map_blocks(
-        func,
-        # arguments to the function
-        overlap,
-        window_size,
-        window_step,
-        bins_width,
-        bins_shift,
-        bimodal_criteria,
+    output = da.map_overlap(
+        cayula_cornillon_numpy,
+        input_field,
+        # overlap
+        depth=depth,
+        boundary="none",
+        # output
+        dtype=np.int64,
+        meta=np.array((), dtype=np.int64),
+        # kwargs for function
+        window_size=window_size,
+        window_step=window_step,
+        bins_width=bins_width,
+        bins_shift=bins_shift,
+        bimodal_criteria=bimodal_criteria,
         **kwargs,
-        meta=np.array((), dtype=input_field.dtype),
     )
-
-    # Trim back the expanded chunks
-    output = da.overlap.trim_internal(output, depth)
 
     return output
 
 
-cayula_cornillon_disptacher = Dispatcher(
+cayula_cornillon_dispatcher = Dispatcher(
     "cayula_cornilon",
     numpy=cayula_cornillon_numpy,
     dask=cayula_cornillon_dask,
@@ -247,7 +241,7 @@ def cayula_cornillon_xarray(
     # and cannot be dealt with only with dask.apply_gufunc (which is what
     # apply_ufunc does).
 
-    func = cayula_cornillon_disptacher.get_func(input_field.data)
+    func = cayula_cornillon_dispatcher.get_func(input_field.data)
     fronts = func(
         input_field.data,
         window_size=window_size_seq,
@@ -551,6 +545,10 @@ def cayula_cornillon_core(
 
         Users should rather use :func:`cayula_cornillon_numpy`.
 
+    Note that the moving window is not centered on a pixel. It moves from [0:step] till
+    it reaches the order boundary. The last window can be smaller but it will still try
+    to compute.
+
     Parameters
     ----------
     field:
@@ -588,9 +586,9 @@ def cayula_cornillon_core(
 
     output[:] = 0
 
-    for pixel_y in prange(size_y, ny - size_y, step_y):
+    for pixel_y in prange(size_y, ny, step_y):
         slice_y = slice(pixel_y, pixel_y + size_y)
-        for pixel_x in prange(size_x, nx - size_x, step_x):
+        for pixel_x in prange(size_x, nx, step_x):
             slice_x = slice(pixel_x, pixel_x + size_x)
             window_flat = field[slice_y, slice_x].flatten()
             window_mask_flat = valid[slice_y, slice_x].flatten()
@@ -605,8 +603,8 @@ def cayula_cornillon_core(
             window = field[slice_y, slice_x]
             window_valid = valid[slice_y, slice_x]
             cluster = (window < threshold).astype(np.int8)
-            if not cohesion(cluster, window_valid):
-                continue
+            # if not cohesion(cluster, window_valid):
+            #     continue
 
             window_edges = get_edges(cluster, ~window_valid)
             output[slice_y, slice_x] += window_edges
