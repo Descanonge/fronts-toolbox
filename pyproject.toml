@@ -42,7 +42,7 @@ tests = [
     # benchmarks
     'pooch',
     'netcdf4',
-    'matplotlib-base',
+    'matplotlib',
     # heterogeneity-index
     'scipy',
     'xarray-histogram',
