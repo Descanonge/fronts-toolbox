@@ -6,6 +6,7 @@ import importlib.util
 import logging
 from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
 from functools import lru_cache, wraps
+from textwrap import dedent, indent
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
@@ -258,3 +259,97 @@ class Dispatcher:
             f"{self.name} has not implementation for '{type(array)}' input,"
             " or a library is missing."
         )
+
+
+axes_help = """\
+Indices of the the y/lat and x/lon axes on which to work. If None (default), the last
+two axes are used."""
+"""Help string for the recurring 'axes' argument."""
+dims_help = """\
+Names of the dimensions along which to apply the algorithm. Order is irrelevant, no
+reordering will be made between the two dimensions. If the `window_size` argument is
+given as a mapping, its keys are used instead. If not specified, is taken by module-wide
+variable :data:`DEFAULT_DIMS` which defaults to ``{'lat', 'lon'}``."""
+"""Help string for the recurring 'dims' argument."""
+
+
+def doc(
+    doc_dict: dict[str, str],
+    remove: Collection[str] | None = None,
+    **change: str,
+) -> Callable[[Function], Function]:
+    """Set docstring automatically.
+
+    For when multiple function have near identical docstrings (variants for different
+    input types for instance).
+    It uses numpy doc style, to have legible interactive help.
+
+    Parameters
+    ----------
+    doc_dict:
+        Dictionnary containing the documentation. The first line is kept from the
+        decorated function.Key 'init' holds the initial paragraph. Keys 'returns' and
+        'rtype' are added to corresponding roles. Other keys are added as parameters.
+        Any key ending in '_type' is added to a parameter type role.
+    remove:
+        Keys to remove from `doc_dict`.
+    change:
+        Keys to add or change.
+    """
+    # copy
+    doc_dict = dict(doc_dict)
+
+    if remove is not None:
+        for key in remove:
+            doc_dict.pop(key)
+
+    doc_dict.update(change)
+
+    def decorator(func: Function) -> Function:
+        assert func.__doc__ is not None
+        new_doc = [func.__doc__.splitlines()[0], ""]
+
+        init = doc_dict.pop("init", None)
+        returns = doc_dict.pop("returns", None)
+        rtype = doc_dict.pop("rtype", None)
+
+        if init is not None:
+            init = dedent(init.rstrip().strip("\n"))
+            new_doc += [init, ""]
+
+        if len(doc_dict) > 0:
+            types = {
+                param.removesuffix("_type"): help
+                for param, help in doc_dict.items()
+                if param.endswith("_type")
+            }
+            for param in types:
+                doc_dict.pop(f"{param}_type")
+
+            new_doc += ["Parameters\n----------"]
+            for param, help in doc_dict.items():
+                first_line = param
+                if param in types:
+                    first_line += f": {types[param]}"
+                new_doc += [
+                    first_line,
+                    indent(dedent(help.rstrip().strip("\n")), " " * 4),
+                ]
+
+            # needs two blank lines after parameters for napoleon
+            new_doc += ["", ""]
+
+        for param, typehint in types.items():
+            new_doc.append(f":{param} type: {typehint}")
+
+        if returns is not None:
+            returns = returns.strip().strip("\n")
+            new_doc.append(f":returns: {returns}")
+
+        if rtype is not None:
+            new_doc.append(f":rtype: {rtype}")
+
+        func.__doc__ = "\n".join(new_doc).rstrip("\n")
+        return func
+
+    return decorator

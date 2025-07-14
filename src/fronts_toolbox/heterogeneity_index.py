@@ -13,7 +13,10 @@ from numpy.typing import NDArray
 
 from fronts_toolbox.util import (
     Dispatcher,
+    axes_help,
     detect_bins_shift,
+    dims_help,
+    doc,
     get_dims_and_window_size,
     get_window_reach,
     guvectorize_lazy,
@@ -44,6 +47,31 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
 _ArrayType = np.ndarray[tuple[int, ...], _DT]
 
 
+_components_doc = dict(
+    input_field="""\
+    Array of the input field from which to compute the heterogeneity index.""",
+    window_size="""\
+    Total size of the moving window, in pixels. If an integer, the size is taken
+    identical for both axis. Otherwise it must be a sequence of 2 integers specifying
+    the window size along both axis. The order must then follow that of the data. For
+    instance, for data arranged as ('time', 'lat', 'lon') if we specify
+    ``window_size=[3, 5]`` the window will be of size 3 along latitude and size 5 for
+    longitude.""",
+    bins_width="""\
+    Width of the bins used to construct the histogram when computing the bimodality.""",
+    bins_shift="""\
+    If non-zero, shift the leftmost and rightmost edges of the bins by this amount to
+    avoid artefacts caused by the discretization of the input field data.""",
+    axes=axes_help,
+    gufunc="Arguments passed to :func:`numba.guvectorize`.",
+    kwargs="""\
+    See available kwargs for universal functions at
+    :external+numpy:ref:`c-api.generalized-ufuncs`.""",
+    returns="Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.",
+)
+
+
+@doc(_components_doc)
 def components_numpy(
     input_field: _ArrayType,
     window_size: int | Sequence[int],
@@ -53,36 +81,7 @@ def components_numpy(
     gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> tuple[_ArrayType, _ArrayType, _ArrayType]:
-    """Compute components from a Numpy array.
-
-    Parameters
-    ----------
-    input_field:
-        Array of the input field from which to compute the heterogeneity index.
-    window_size:
-        Total size of the moving window, in pixels. If an integer, the size is taken
-        identical for both axis. Otherwise it must be a sequence of 2 integers
-        specifying the window size along both axis. The order must then follow that of
-        the data. For instance, for data arranged as ('time', 'lat', 'lon') if we
-        specify ``window_size=[3, 5]`` the window will be of size 3 along latitude and
-        size 5 for longitude.
-    bins_width:
-        Width of the bins used to construct the histogram when computing the bimodality.
-    bins_shift:
-        If non-zero, shift the leftmost and rightmost edges of the bins by this amount
-        to avoid artefacts caused by the discretization of the input field data.
-    axes:
-        Indices of the the y/lat and x/lon axes on which to work. If None (default), the
-        last two axes are used.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-    kwargs:
-        See available kwargs for universal functions at
-        :external+numpy:ref:`c-api.generalized-ufuncs`.
-
-
-    :returns: Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
-    """
+    """Compute components from a Numpy array."""
     window_reach = get_window_reach(window_size)
 
     if bins_width == 0.0:
@@ -109,6 +108,7 @@ def components_numpy(
     return stdev, skew, bimod
 
 
+@doc(_components_doc, input_field_type="dask.array.Array", rtype="dask.array.Array")
 def components_dask(
     input_field: DaskArray,
     window_size: int | Sequence[int],
@@ -118,38 +118,7 @@ def components_dask(
     gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> tuple[DaskArray, DaskArray, DaskArray]:
-    """Compute components from Dask array.
-
-    Parameters
-    ----------
-    input_field: dask.array.Array
-        Array of the input field.
-    window_size:
-        Total size of the moving window, in pixels. If an integer, the size is taken
-        identical for both axis. Otherwise it must be a sequence of 2 integers
-        specifying the window size along both axis. The order must then follow that of
-        the data. For instance, for data arranged as ('time', 'lat', 'lon') if we
-        specify ``window_size=[3, 5]`` the window will be of size 3 along latitude and
-        size 5 for longitude.
-    bins_width:
-        Width of the bins used to construct the histogram when computing the
-        bimodality.
-    bins_shift:
-        If non-zero, shift the leftmost and rightmost edges of the bins by
-        this amount to avoid artefacts caused by the discretization of the
-        input field data.
-    axes:
-        Indices of the the y/lat and x/lon axes on which to work. If None (default), the
-        last two axes are used.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-    kwargs:
-        See available kwargs for universal functions at
-        :external+numpy:ref:`c-api.generalized-ufuncs`.
-
-
-    :returns: Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.
-    """
+    """Compute components from Dask array."""
     import dask.array as da
 
     window_reach_x, window_reach_y = get_window_reach(window_size)
@@ -205,6 +174,23 @@ components_dispatcher = Dispatcher(
 )
 
 
+@doc(
+    _components_doc,
+    input_field_type="xarray.DataArray",
+    rtype="xarray.DataArray",
+    window_size="""\
+    Total size of the moving window, in pixels. If a single integer, the size is taken
+    identical for both axis. Otherwise it can be a mapping of the dimensions names to
+    the window size along this axis.""",
+    bins_shift="""\
+    If a non-zero :class:`float`, shift the leftmost and rightmost edges of the bins by
+    this amount to avoid artefacts caused by the discretization of the input field data.
+    If `True` (default), wether to shift and by which amount is determined using the
+    input metadata.
+
+    Set to 0 or `False` to not shift bins.""",
+    dims=dims_help,
+)
 def components_xarray(
     input_field: DataArray,
     window_size: int | Mapping[Hashable, int],
@@ -213,43 +199,7 @@ def components_xarray(
     dims: Collection[Hashable] | None = None,
     gufunc: Mapping[str, Any] | None = None,
 ) -> Dataset:
-    """Compute components from Xarray data.
-
-    Parameters
-    ----------
-    input_field: xarray.DataArray
-        Array of the input field.
-    window_size:
-        Total size of the moving window, in pixels. If a single integer, the size is
-        taken identical for both axis. Otherwise it can be a mapping of the dimensions
-        names to the window size along this axis.
-        It can also be a sequence of 2 integers specifying the window size along both
-        axis. The order must then follow that of the data. For instance, for data
-        arranged as ('time', 'lat', 'lon') if we specify ``window_size=[3, 5]`` the
-        window will be of size 3 along latitude and size 5 for longitude.
-    bins_width:
-        Width of the bins used to construct the histogram when computing the bimodality.
-    bins_shift:
-        If a non-zero :class:`float`, shift the leftmost and rightmost edges of the bins
-        by this amount to avoid artefacts caused by the discretization of the input
-        field data.
-        If `True` (default), wether to shift and by which amount is determined using the
-        input metadata.
-
-        Set to 0 or `False` to not shift bins.
-    dims:
-        Names of the dimensions along which to compute the index. Order is irrelevant,
-        no reordering will be made between the two dimensions.
-        If the `window_size` argument is given as a mapping, its keys are used instead.
-        If not specified, is taken by module-wide variable :data:`DEFAULT_DIMS`
-        which defaults to ``{'lat', 'lon'}``.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-
-
-    :returns: Dataset containing the components as three variables.
-    :rtype: xarray.Dataset
-    """
+    """Compute components from Xarray data."""
     import xarray as xr
 
     if bins_width == 0.0:
@@ -500,22 +450,23 @@ def components_core(
 
 ## Normalization
 
+_coef_comp_doc = dict(
+    init="""\
+    Coefficients are defined such that components contribute equally to the final HI
+    variance. This function does not modify components, only returns the coefficients.
 
+    Coefficients are computed over the full range of data contained in input parameter
+    ``components``.""",
+    components="""\
+    Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by default,
+    ``stdev``, ``skew``, ``bimod``).""",
+    returns="Dictionnary containing coefficients for each component.",
+)
+
+
+@doc(_coef_comp_doc)
 def coefficients_components_numpy(components: Sequence[NDArray]) -> dict[str, float]:
-    """Find normalization coefficients for all components.
-
-    Coefficients are defined such that components contribute equally to the
-    final HI variance.
-    This function does not modify components, only returns the coefficients.
-
-    Coefficients are computed over the full range of data contained in input
-    parameter ``components``.
-
-    :param components: Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by
-        default, ``stdev``, ``skew``, ``bimod``).
-
-    :returns: Dictionnary containing coefficients for each component.
-    """
+    """Find normalization coefficients for all components."""
     coefficients = {}
     for name, comp in zip(COMPONENTS_NAMES, components, strict=True):
         std: Any  # silence mypy about std being an array
@@ -530,21 +481,9 @@ def coefficients_components_numpy(components: Sequence[NDArray]) -> dict[str, fl
     return coefficients
 
 
+@doc(_coef_comp_doc)
 def coefficients_components_dask(components: Sequence[DaskArray]) -> dict[str, float]:
-    """Find normalization coefficients for all components.
-
-    Coefficients are defined such that components contribute equally to the
-    final HI variance.
-    This function does not modify components, only returns the coefficients.
-
-    Coefficients are computed over the full range of data contained in input
-    parameter ``components``.
-
-    :param components: Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by
-            default, ``stdev``, ``skew``, ``bimod``).
-
-    :returns: Dictionnary containing coefficients for each component.
-    """
+    """Find normalization coefficients for all components."""
     import dask.array as da
 
     coefficients = {}
@@ -561,25 +500,17 @@ def coefficients_components_dask(components: Sequence[DaskArray]) -> dict[str, f
     return coefficients
 
 
+@doc(
+    _coef_comp_doc,
+    components="""\
+    Either a :class:`xarray.Dataset` containing the three components, such as returned
+    from :func:`components_xarray`, or three arrays in the order defined by
+    :data:`COMPONENTS_NAMES` (by default, ``stdev``, ``skew``, ``bimod``).""",
+)
 def coefficients_components_xarray(
     components: Dataset | Sequence[DataArray],
 ) -> dict[str, float]:
-    """Find normalization coefficients for all components.
-
-    Coefficients are defined such that components contribute equally to the
-    final HI variance.
-    This function does not modify components, only returns the coefficients.
-
-    Coefficients are computed over the full range of data contained in input
-    parameter ``components``.
-
-    :param components: Either a :class:`xarray.Dataset` containing the three components,
-        such as returned from :func:`components_xarray`, or three arrays in the order
-        defined by :data:`COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
-        ``bimod``).
-
-    :returns: Dictionnary containing coefficients for each component.
-    """
+    """Find normalization coefficients for all components."""
     if is_dataset(components):
         components = tuple(components[name] for name in COMPONENTS_NAMES)
 
@@ -606,25 +537,18 @@ coefficients_components_dispatcher = Dispatcher(
 )
 
 
+@doc(
+    _coef_comp_doc,
+    components="""\
+    Either a :class:`xarray.Dataset` containing the three components, such as returned
+    from :func:`components_xarray`, or three arrays (from Numpy, Dask, or Xarray) in the
+    order defined by :data:`COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
+    ``bimod``).""",
+)
 def coefficients_components(
     components: Dataset | Sequence[DataArray] | Sequence[DaskArray] | Sequence[NDArray],
 ) -> dict[str, float]:
-    """Find normalization coefficients for all components.
-
-    Coefficients are defined such that components contribute equally to the
-    final HI variance.
-    This function does not modify components, only returns the coefficients.
-
-    Coefficients are computed over the full range of data contained in input
-    parameter ``components``.
-
-    :param components: Either a :class:`xarray.Dataset` containing the three components,
-        such as returned from :func:`components_xarray`, or three arrays (from Numpy,
-        Dask, or Xarray) in the order defined by :data:`COMPONENTS_NAMES` (by default,
-        ``stdev``, ``skew``, ``bimod``).
-
-    :returns: Dictionnary containing coefficients for each component.
-    """
+    """Find normalization coefficients for all components."""
     if is_dataset(components):
         func = coefficients_components_dispatcher.get("xarray")
     else:
@@ -632,6 +556,25 @@ def coefficients_components(
     return func(components)
 
 
+_coef_hi_doc = dict(
+    init="""\
+    Returns a coefficient to normalize the HI (the sum of the three normalized
+    components) such that 95% of its values are below a limit value of *9.5*. (These are
+    the default values but can be changed with the parameters ``quantile_target`` and
+    ``hi_limit``).""",
+    components="""\
+    Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by default,
+    ``stdev``, ``skew``, ``bimod``).""",
+    coefficients="Dictionnary of the components normalization coefficients.",
+    quantile_target="""\
+    Fraction of the quantity of HI values that should be below ``hi_limit`` once
+    normalized. Should be between 0 and 1.""",
+    hi_limit="See ``quantile_target``.",
+    returns="Coefficient to normalize the HI with.",
+)
+
+
+@doc(_coef_hi_doc, kwargs="Arguments passed to :func:`numpy.histogram`.")
 def coefficient_hi_numpy(
     components: Sequence[NDArray],
     coefficients: Mapping[str, float],
@@ -639,31 +582,7 @@ def coefficient_hi_numpy(
     hi_limit: float = 9.5,
     **kwargs: Any,
 ) -> float:
-    """Compute final normalization coefficient for the HI.
-
-    Returns a coefficient to normalize the HI (the sum of the three normalized
-    components) such that 95% of its values are below a limit value of *9.5*.
-    (These are the default values but can be changed with the parameters
-    ``quantile_target`` and ``hi_limit``).
-
-    Parameters
-    ----------
-    components:
-        Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by default,
-        ``stdev``, ``skew``, ``bimod``).
-    coefficients:
-        Dictionnary of the components normalization coefficients.
-    quantile_target:
-        Fraction of the quantity of HI values that should be below ``hi_limit``
-        once normalized. Should be between 0 and 1.
-    hi_limit:
-        See ``quantile_target``.
-    kwargs:
-        Arguments passed to :func:`numpy.histogram`.
-
-
-    :returns: Coefficient to normalize the HI with.
-    """
+    """Compute final normalization coefficient for the HI."""
     from scipy.stats import rv_histogram
 
     coefficients = dict(coefficients)  # make a copy
@@ -686,6 +605,7 @@ def coefficient_hi_numpy(
     return coef
 
 
+@doc(_coef_hi_doc, kwargs="Arguments passed to :func:`dask.array.histogram`.")
 def coefficient_hi_dask(
     components: Sequence[DaskArray],
     coefficients: Mapping[str, float],
@@ -693,31 +613,7 @@ def coefficient_hi_dask(
     hi_limit: float = 9.5,
     **kwargs: Any,
 ) -> float:
-    """Compute final normalization coefficient for the HI.
-
-    Returns a coefficient to normalize the HI (the sum of the three normalized
-    components) such that 95% of its values are below a limit value of *9.5*.
-    (These are the default values but can be changed with the parameters
-    ``quantile_target`` and ``hi_limit``).
-
-    Parameters
-    ----------
-    components:
-        Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by default,
-        ``stdev``, ``skew``, ``bimod``).
-    coefficients:
-        Dictionnary of the components normalization coefficients.
-    quantile_target:
-        Fraction of the quantity of HI values that should be below ``hi_limit``
-        once normalized. Should be between 0 and 1.
-    hi_limit:
-        See ``quantile_target``.
-    kwargs:
-        Arguments passed to :func:`dask.array.histogram`.
-
-
-    :returns: Coefficient to normalize the HI with.
-    """
+    """Compute final normalization coefficient for the HI."""
     import dask.array as da
     from scipy.stats import rv_histogram
 
@@ -742,6 +638,14 @@ def coefficient_hi_dask(
     return coef
 
 
+@doc(
+    _coef_hi_doc,
+    components="""\
+    Either a :class:`xarray.Dataset` containing the three components, such as returned
+    from :func:`components_xarray`, or three arrays in the order defined by
+    :data:`COMPONENTS_NAMES` (by default, ``stdev``, ``skew``, ``bimod``).""",
+    kwargs="Arguments passed to :func:`xarray_histogram.core.histogram`.",
+)
 def coefficient_hi_xarray(
     components: Dataset | Sequence[DataArray],
     coefficients: Mapping[str, float],
@@ -749,31 +653,7 @@ def coefficient_hi_xarray(
     hi_limit: float = 9.5,
     **kwargs: Any,
 ) -> float:
-    """Compute final normalization coefficient for the HI.
-
-    Returns a coefficient to normalize the HI (the sum of the three normalized
-    components) such that 95% of its values are below a limit value of *9.5*.
-    (These are the default values but can be changed with the parameters
-    ``quantile_target`` and ``hi_limit``).
-
-    Parameters
-    ----------
-    components:
-        Three arrays in the order defined by :data:`COMPONENTS_NAMES` (by default,
-        ``stdev``, ``skew``, ``bimod``).
-    coefficients:
-        Dictionnary of the components normalization coefficients.
-    quantile_target:
-        Fraction of the quantity of HI values that should be below ``hi_limit``
-        once normalized. Should be between 0 and 1.
-    hi_limit:
-        See ``quantile_target``.
-    kwargs:
-        Arguments passed to :func:`xarray_histogram.core.histogram`.
-
-
-    :returns: Coefficient to normalize the HI with.
-    """
+    """Compute final normalization coefficient for the HI."""
     import boost_histogram as bh
     from scipy.stats import rv_histogram
     from xarray_histogram import histogram
@@ -811,6 +691,17 @@ coefficient_hi_dispatcher = Dispatcher(
 )
 
 
+@doc(
+    _coef_hi_doc,
+    components="""\
+    Either a :class:`xarray.Dataset` containing the three components, such as returned
+    from :func:`components_xarray`, or three arrays (from Numpy, Dask, or Xarray) in the
+    order defined by :data:`COMPONENTS_NAMES` (by default, ``stdev``, ``skew``,
+    ``bimod``).""",
+    kwargs="""\
+    Arguments passed to either :func:`numpy.histogram`, :func:`dask.array.histogram`
+    or :func:`xarray_histogram.core.histogram`.""",
+)
 def coefficient_hi(
     components: Dataset | Sequence[DataArray] | Sequence[DaskArray] | Sequence[NDArray],
     coefficients: Mapping[str, float],
@@ -818,33 +709,7 @@ def coefficient_hi(
     hi_limit: float = 9.5,
     **kwargs: Any,
 ) -> float:
-    """Compute final normalization coefficient for the HI.
-
-    Returns a coefficient to normalize the HI (the sum of the three normalized
-    components) such that 95% of its values are below a limit value of *9.5*.
-    (These are the default values but can be changed with the parameters
-    ``quantile_target`` and ``hi_limit``).
-
-    Parameters
-    ----------
-    components:
-        Either a :class:`xarray.Dataset` containing the three components, such as
-        returned from :func:`components_xarray`, or three arrays (from Numpy, Dask, or
-        Xarray) in the order defined by :data:`COMPONENTS_NAMES` (by default, ``stdev``,
-        ``skew``, ``bimod``).
-    coefficients:
-        Dictionnary of the components normalization coefficients.
-    quantile_target:
-        Fraction of the quantity of HI values that should be below ``hi_limit``
-        once normalized. Should be between 0 and 1.
-    hi_limit:
-        See ``quantile_target``.
-    kwargs:
-        Arguments passed to :func:`xarray_histogram.core.histogram`.
-
-
-    :returns: Coefficient to normalize the HI with.
-    """
+    """Compute final normalization coefficient for the HI."""
     if is_dataset(components):
         func = coefficient_hi_dispatcher.get("xarray")
     else:

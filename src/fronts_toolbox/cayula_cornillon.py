@@ -16,10 +16,12 @@ from numpy.typing import NDArray
 
 from fronts_toolbox.util import (
     Dispatcher,
+    axes_help,
     detect_bins_shift,
+    dims_help,
+    doc,
     get_axes_kwarg,
     get_dims_and_window_size,
-    get_window_reach,
     guvectorize_lazy,
 )
 
@@ -37,6 +39,40 @@ Used for Xarray input where the *dims* argument is None and *window_size*
 is not a Mapping.
 """
 
+_doc = dict(
+    init="""\
+    This only include histogram analysis and cohesion check. It does not include cloud
+    detection (this is left to the data provider) or contour following.""",
+    input_field="Array of the input field.",
+    window_size="""
+    Total size of the moving window, in pixels. If an integer, the size is taken
+    identical for both axis. Otherwise it must be a sequence of 2 integers specifying
+    the window size along both axis. The order must then follow that of the data. For
+    instance, for data arranged as ('time', 'lat', 'lon') if we specify
+    ``window_size=[3, 5]`` the window will be of size 3 along latitude and size 5 for
+    longitude.""",
+    window_step="""\
+    Step by which to shift the moving window. If None (default), use the window size
+    (meaning there is no overlap). If an integer, the step is taken identical for both
+    axis. Otherwise it must be a sequence of 2 integers specifying the window step along
+    both axis, in the same order as the window size.""",
+    bins_width="Width of the bins used to construct the histogram.",
+    bins_shift="""\
+    If non-zero, shift the leftmost and rightmost edges of the bins by this amount to
+    avoid artefacts caused by the discretization of the input field data.""",
+    bimodal_criteria="""\
+    Criteria for determining if the distribution is bimodal or not. The default is 0.7,
+    as choosen in Cayula & Cornillon (1992).""",
+    axes=axes_help,
+    gufunc="Arguments passed to :func:`numba.guvectorize`.",
+    kwargs="""\
+    See available kwargs for universal functions at
+    :external+numpy:ref:`c-api.generalized-ufuncs`.""",
+    returns="""\
+    Array of the number of fronts detected for each pixel. If there is overlap when
+    shifting the moving window, the value can be greater than 1.""",
+)
+
 
 def _get_window_args(
     window_size: int | Sequence[int], window_step=int | Sequence[int] | None
@@ -52,6 +88,7 @@ def _get_window_args(
     return window_size, window_step
 
 
+@doc(_doc)
 def cayula_cornillon_numpy(
     input_field: np.ndarray[_Size, np.dtype[Any]],
     window_size: int | Sequence[int] = 32,
@@ -63,48 +100,7 @@ def cayula_cornillon_numpy(
     gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> np.ndarray[_Size, np.dtype[np.int64]]:
-    """Apply Cayula-Cornillon algorithm.
-
-    This only include histogram analysis and cohesion check. It does not include cloud
-    detection (this is left to the data provider) or contour following.
-
-    Parameters
-    ----------
-    input_field:
-        Array of the input field.
-    window_size:
-        Total size of the moving window, in pixels. If an integer, the size is taken
-        identical for both axis. Otherwise it must be a sequence of 2 integers
-        specifying the window size along both axis. The order must then follow that of
-        the data. For instance, for data arranged as ('time', 'lat', 'lon') if we
-        specify ``window_size=[3, 5]`` the window will be of size 3 along latitude and
-        size 5 for longitude.
-    window_step:
-        Step by which to shift the moving window. If None (default), use the window size
-        (meaning there is no overlap). If an integer, the step is taken identical for
-        both axis. Otherwise it must be a sequence of 2 integers specifying the window
-        step along both axis, in the same order as the window size.
-    bins_width:
-        Width of the bins used to construct the histogram.
-    bins_shift:
-        If non-zero, shift the leftmost and rightmost edges of the bins by this amount
-        to avoid artefacts caused by the discretization of the input field data.
-    bimodal_criteria:
-        Criteria for determining if the distribution is bimodal or not. The default is
-        0.7, as choosen in Cayula & Cornillon (1992).
-    axes:
-        Indices of the the y/lat and x/lon axes on which to work. If None (default), the
-        last two axes are used.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-    kwargs:
-        See available kwargs for universal functions at
-        :external+numpy:ref:`c-api.generalized-ufuncs`.
-
-
-    :returns: Array of the number of fronts detected for each pixel. If there is overlap
-        when shifting the moving window, the value can be greater than 1.
-    """
+    """Apply Cayula-Cornillon algorithm."""
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
 
@@ -126,6 +122,7 @@ def cayula_cornillon_numpy(
     )
 
 
+@doc(_doc, input_field_type="dask.array.Array", rtype="dask.array.Array")
 def cayula_cornillon_dask(
     input_field: DaskArray,
     window_size: int | Sequence[int] = 32,
@@ -137,48 +134,7 @@ def cayula_cornillon_dask(
     gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> DaskArray:
-    """Apply Cayula-Cornillon algorithm.
-
-    This only include histogram analysis and cohesion check. It does not include cloud
-    detection (this is left to the data provider) or contour following.
-
-    Parameters
-    ----------
-    input_field: dask.array.Array
-        Array of the input field.
-    window_size:
-        Total size of the moving window, in pixels. If an integer, the size is taken
-        identical for both axis. Otherwise it must be a sequence of 2 integers
-        specifying the window size along both axis. The order must then follow that of
-        the data. For instance, for data arranged as ('time', 'lat', 'lon') if we
-        specify ``window_size=[3, 5]`` the window will be of size 3 along latitude and
-        size 5 for longitude.
-    window_step:
-        Step by which to shift the moving window. If None (default), use the window size
-        (meaning there is no overlap). If an integer, the step is taken identical for
-        both axis. Otherwise it must be a sequence of 2 integers specifying the window
-        step along both axis, in the same order as the window size.
-    bins_width:
-        Width of the bins used to construct the histogram.
-    bins_shift:
-        If non-zero, shift the leftmost and rightmost edges of the bins by this amount
-        to avoid artefacts caused by the discretization of the input field data.
-    bimodal_criteria:
-        Criteria for determining if the distribution is bimodal or not. The default is
-        0.7, as choosen in Cayula & Cornillon (1992).
-    axes:
-        Indices of the the y/lat and x/lon axes on which to work. If None (default), the
-        last two axes are used.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-    kwargs:
-        See available kwargs for universal functions at
-        :external+numpy:ref:`c-api.generalized-ufuncs`.
-
-
-     :returns: Array of the number of fronts detected for each pixel. If there is
-        overlap when shifting the moving window, the value can be greater than 1.
-    """
+    """Apply Cayula-Cornillon algorithm."""
     import dask.array as da
 
     window_size, window_step = _get_window_args(window_size, window_step)
@@ -227,6 +183,29 @@ cayula_cornillon_disptacher = Dispatcher(
 )
 
 
+@doc(
+    _doc,
+    remove=["axes"],
+    input_field_type="xarray.DataArray",
+    rtype="xarray.DataArray",
+    window_size="""\
+    Total size of the moving window, in pixels. If a single integer, the size is taken
+    identical for both axis. Otherwise it can be a mapping of the dimensions names to
+    the window size along this axis.""",
+    window_step="""\
+    Step by which to shift the moving window. If None (default), use the window size
+    (meaning there is no overlap). If an integer, the step is taken identical for both
+    axis. Otherwise it can be a mapping of the dimensions names to the window step along
+    this axis.""",
+    bins_shift="""\
+    If a non-zero :class:`float`, shift the leftmost and rightmost edges of the bins by
+    this amount to avoid artefacts caused by the discretization of the input field data.
+    If `True` (default), wether to shift and by which amount is determined using the
+    input metadata.
+
+    Set to 0 or `False` to not shift bins.""",
+    dims=dims_help,
+)
 def cayula_cornillon_xarray(
     input_field: DataArray,
     window_size: int | Mapping[Hashable, int] = 32,
@@ -237,50 +216,7 @@ def cayula_cornillon_xarray(
     dims: Collection[Hashable] | None = None,
     gufunc: Mapping[str, Any] | None = None,
 ) -> DataArray:
-    """Apply Cayula-Cornillon algorithm.
-
-    This only include histogram analysis and cohesion check. It does not include cloud
-    detection (this is left to the data provider) or contour following.
-
-    Parameters
-    ----------
-    input_field: xarray.DataArray
-        Array of the input field.
-    window_size:
-        Total size of the moving window, in pixels. If a single integer, the size is
-        taken identical for both axis. Otherwise it can be a mapping of the dimensions
-        names to the window size along this axis.
-    window_step:
-        Step by which to shift the moving window. If None (default), use the window size
-        (meaning there is no overlap). If an integer, the step is taken identical for
-        both axis. Otherwise it can be a mapping of the dimensions names to the window
-        step along this axis.
-    bins_width:
-        Width of the bins used to construct the histogram.
-    bins_shift:
-        If a non-zero :class:`float`, shift the leftmost and rightmost edges of
-        the bins by this amount to avoid artefacts caused by the discretization
-        of the input field data.
-        If `True` (default), wether to shift and by which amount is determined using
-        the input metadata.
-
-        Set to 0 or `False` to not shift bins.
-    bimodal_criteria:
-        Criteria for determining if the distribution is bimodal or not. The default is
-        0.7, as choosen in Cayula & Cornillon (1992).
-    dims:
-        Names of the dimensions along which to apply the algorithm. Order is irrelevant,
-        no reordering will be made between the two dimensions.
-        If the `window_size` argument is given as a mapping, its keys are used instead.
-        If not specified, is taken by module-wide variable :data:`DEFAULT_DIMS`
-        which defaults to ``{'lat', 'lon'}``.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-
-
-    :returns: Array of the number of fronts detected for each pixel. If there is overlap
-        when shifting the moving window, the value can be greater than 1.
-    """
+    """Apply Cayula-Cornillon algorithm."""
     import xarray as xr
 
     if bins_width == 0.0:

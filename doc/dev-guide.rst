@@ -46,6 +46,9 @@ That can lengthen the import time quite a bit in the case of Dask and Xarray.
    All additional packages (required or optional) must be indicated in the
    'tests' optional dependencies in ``pyproject.toml``.
 
+Dispatcher
+----------
+
 A function may be defined for each type of input, suffixed with the library name
 (``_numpy``, ``_dask``, ``_xarray``, ``_cuda``, etc.). A function that can
 handle any input can also be defined (not obligatory). To help with dispatching
@@ -67,6 +70,46 @@ the input to the correct function, you can define a :class:`.util.Dispatcher`::
     The mapper will give appropriate an message error if an input type is
     unsupported, or if the needed library is not installed.
 
+Documentation
+-------------
+
+Having a function for each input type can lead to a lot of duplication in the
+docstrings. To help avoid repeating yourself, use the :func:`.util.doc`
+decorator. It takes a dictionary containing the parameters documentation, and
+additional keys "init", "returns", "rtype" and "remove". The decorated function
+should have a single line docstring. You can define a single dictionary and
+reuse for the different functions. You can remove keys that are not used for
+this specific decorated function and update the dictionary by passing additional
+keyword arguments for the decorator::
+
+  _doc = dict(
+    init="""\
+    The initial paragraph. Notice the long-string syntax
+    to have multiple lines.""",
+    returns="For :returns: role",
+    rtype="A typehint for the :rtype: role",
+    param1="Help for the first parameter",
+    param1_type="The typehint for 'param1', this is optional"
+    param2="Help for the second parameter",
+    axes=axes_help,
+  )
+
+  @doc(_doc)
+  def my_first_function(param1, param2, axes):
+      ...
+
+  @doc(
+    _doc,
+    remove=["axes"],  # axes is not used in this function
+    param1="The help should change slightly for this parameter",
+    rtype="The return type is different",
+    dims=dims_help,
+  )
+  def my_second_function(param1, param2, dims):
+    ...
+
+The recurring ``axes`` and ``dims`` arguments have pre-defined help strings
+in :data:`.util.axes_help` and :data:`.util.dims_help`.
 
 .. _dev-numba:
 
@@ -79,15 +122,14 @@ This necessites dealing with looping over those dimensions and specifying axes
 placement.
 
 For Numpy, if you intend to compile your function with Numba, using
-:func:`numba.guvectorize` gives a generalized universal function with trivialize
-the matter (see below).
-Otherwise there is sadly no easy way; :class:`numpy.vectorize` and
-:func:`numpy.frompyfunc` are meant for universal functions (not generalized).
-See `issue #14020 <https://github.com/numpy/numpy/issues/14020>`__.
+:func:`numba.guvectorize` gives a generalized universal function.
+Otherwise :class:`numpy.vectorize` and :func:`numpy.frompyfunc` can do the job,
+however they do not handle keyword arguments. If needed, use ``np.vectorize``
+with the signature given by :func:`.util.get_vectorized_signature`.
 
-Dask `handles generalized
-ufuncs <https://docs.dask.org/en/latest/array-gufunc.html>`__ gracefully and allows
-to convert a Python function to a generalized ufunc with
+Dask `handles generalized ufuncs
+<https://docs.dask.org/en/latest/array-gufunc.html>`__ gracefully and allows to
+convert a Python function to a generalized ufunc with
 :class:`~dask.array.gufunc.gufunc` and :func:`~dask.array.gufunc.as_gufunc`.
 This onlys works for Dask arrays though.
 
