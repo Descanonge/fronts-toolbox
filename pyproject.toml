@@ -34,12 +34,6 @@ docs = [
     'pydata-sphinx-theme==0.15.*',
     'sphinx-design',
     'sphinx-copybutton',
-    'nbsphinx>=0.9.2',
-    'matplotlib',
-    'xarray',
-    'dask',
-    'netcdf',
-    'pooch'
 ]
 tests = [
     'pytest>=7.4',
