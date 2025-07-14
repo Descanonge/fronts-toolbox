@@ -8,4 +8,4 @@ tmp/
 _build
 htmlcov
 
-doc/_generated/
+docs/_generated/

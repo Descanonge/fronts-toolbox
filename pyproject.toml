@@ -31,7 +31,7 @@ dependencies = [
 [project.optional-dependencies]
 docs = [
     'sphinx==8.2.*',
-    'sphinx-book-theme==0.15.*',
+    'pydata-sphinx-theme==0.15.*',
     'sphinx-design',
     'sphinx-copybutton',
     'nbsphinx>=0.9.2',
@@ -63,12 +63,12 @@ tests = [
 
 [tool.mypy]
 ignore_missing_imports = true
-exclude = ['^doc/extensions', '^tests']
+exclude = ['^docs/extensions', '^tests']
 
 [tool.ruff]
 line-length = 88
 target-version = 'py311'
-extend-exclude = ['doc/extensions/*.py', 'doc/conf.py', 'tests']
+extend-exclude = ['docs/extensions/*.py', 'docs/conf.py', 'tests']
 
 [tool.ruff.lint]
 select = [
