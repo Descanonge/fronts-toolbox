@@ -49,7 +49,7 @@ computed by interpolating the values from a selection of the 8 closest
 neighbors.
 
 See the implementation at
-`https://github.com/scikit-image/scikit-image/blob/main/skimage/feature/_canny_cy.pyx`__.
+`<https://github.com/scikit-image/scikit-image/blob/main/skimage/feature/_canny_cy.pyx>`__.
 
 Hysteresis or double-thresholding
 ---------------------------------
