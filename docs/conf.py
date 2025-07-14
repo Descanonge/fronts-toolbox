@@ -80,10 +80,6 @@ html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 html_title = project
 html_theme_options = dict(
-    # Social icons
-    icon_links=[
-        dict(name="Repository", url=github, icon="fa-brands fa-square-gitlab"),
-    ],
     github_url=github,
     # TOC
     secondary_sidebar_items=["page-toc"],
