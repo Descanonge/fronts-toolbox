@@ -43,6 +43,29 @@ def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
     return window_reach
 
 
+def get_vectorized_signature(
+    n_input: int = 1, n_output: int = 1, n_core: int = 2, n_kwargs: int = 0
+) -> str:
+    """Get a signature to give to numpy.vectorize. Deal with keyword arguments.
+
+    Parameters
+    ----------
+    n_input:
+        The number of input arrays.
+    n_output:
+        The number of output arrays.
+    n_core:
+        The number of core dimensions.
+    n_kwargs:
+        The number of keyword arguments to pass to the function.
+    """
+    core = "({})".format(",".join([chr(97 + i) for i in range(n_core)]))
+    inputs = [core] * n_input + ["()" for _ in range(n_kwargs)]
+    sig_out = ",".join([core] * n_output)
+    sig_in = ",".join(inputs)
+    return f"{sig_in}->{sig_out}"
+
+
 def get_axes_kwarg(
     signature: str, axes: Sequence[int], order: str = "y,x"
 ) -> list[tuple[int, ...]]:
