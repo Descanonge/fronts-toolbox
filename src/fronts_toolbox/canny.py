@@ -173,7 +173,10 @@ def canny_dask(
     # expand blocks by one for gradient
     if axes is None:
         axes = [-2, -1]
-    depth = {axes[0]: 1, axes[1]: 1}
+    axes = [range(input_field.ndim)[i] for i in axes]
+    # we share 2 additional pixels. We need the gradient of the 8 closest neighbors,
+    # which is computed over a 3x3 window (for each neighbor)
+    depth = {axes[0]: 2, axes[1]: 2}
     output = da.map_overlap(
         canny_numpy,
         input_field,
