@@ -7,10 +7,11 @@ import logging
 from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
 from functools import lru_cache, wraps
 from textwrap import dedent, indent
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 import numpy as np
 from numba import guvectorize
+from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from dask.array import Array as DaskArray
@@ -43,9 +44,18 @@ def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
     return window_reach
 
 
-def get_vectorized_signature(
-    n_input: int = 1, n_output: int = 1, n_core: int = 2, n_kwargs: int = 0
-) -> str:
+_Size = TypeVar("_Size", bound=tuple[int, ...])
+_DTin = TypeVar("_DTin", bound=np.dtype)
+_DTout = TypeVar("_DTout", bound=np.dtype)
+
+
+def apply_as_gufunc(
+    func: Callable[[np.ndarray[_Size, _DTin]], np.ndarray[_Size, _DTout]],
+    input_field: np.ndarray[_Size, _DTin],
+    axes: Sequence[int] | None = None,
+    n_dim_core: int = 2,
+    **kwargs,
+) -> np.ndarray[_Size, _DTout]:
     """Get a signature to give to numpy.vectorize. Deal with keyword arguments.
 
     Parameters
@@ -59,11 +69,36 @@ def get_vectorized_signature(
     n_kwargs:
         The number of keyword arguments to pass to the function.
     """
-    core = "({})".format(",".join([chr(97 + i) for i in range(n_core)]))
-    inputs = [core] * n_input + ["()" for _ in range(n_kwargs)]
-    sig_out = ",".join([core] * n_output)
-    sig_in = ",".join(inputs)
-    return f"{sig_in}->{sig_out}"
+    n_dim_array = input_field.ndim
+    last_axes = list(range(n_dim_array - n_dim_core, n_dim_array))
+    if axes is None:
+        axes = last_axes
+
+    # normalize axes
+    axes = [range(n_dim_array)[i] for i in axes]
+
+    if axes != last_axes:
+        # we copy to make sure axes order is efficient
+        input_field = np.moveaxis(
+            input_field, source=axes, destination=last_axes
+        ).copy()
+
+    if n_dim_array > n_dim_core:
+        core_shape = input_field.shape[-n_dim_core:]
+        loop_shape = input_field.shape[:-n_dim_core]
+        input_field = np.reshape(input_field, (-1, *core_shape))
+
+        output = np.stack(
+            [func(input_field[i], **kwargs) for i in range(input_field.shape[0])]
+        )
+        output = np.reshape(output, (*loop_shape, *core_shape))
+    else:
+        output = func(input_field, **kwargs)
+
+    if axes != last_axes:
+        output = np.moveaxis(output, source=last_axes, destination=axes)
+
+    return output
 
 
 def get_axes_kwarg(

@@ -11,14 +11,7 @@ from skimage._shared.utils import _supported_float_type, check_nD
 from skimage.feature._canny_cy import _nonmaximum_suppression_bilinear
 from skimage.util.dtype import dtype_limits
 
-from fronts_toolbox.util import (
-    Dispatcher,
-    axes_help,
-    dims_help,
-    doc,
-    get_axes_kwarg,
-    get_vectorized_signature,
-)
+from fronts_toolbox.util import Dispatcher, apply_as_gufunc, axes_help, dims_help, doc
 
 if TYPE_CHECKING:
     from dask.array import Array as DaskArray
@@ -154,18 +147,14 @@ def canny_numpy(
     axes: Sequence[int] | None = None,
 ) -> np.ndarray[_Size, np.dtype[np.bool]]:
     """Apply Canny Edge Detector."""
-    signature = get_vectorized_signature(n_input=1, n_output=1, n_core=2, n_kwargs=4)
-    axes_gufunc = None if axes is None else get_axes_kwarg(signature, axes)
-
-    ufunc = np.vectorize(canny_core, signature=signature)
-
-    return ufunc(
+    return apply_as_gufunc(
+        canny_core,
         input_field,
         hysteresis=hysteresis,
         low_threshold=low_threshold,
         high_threshold=high_threshold,
         use_quantiles=use_quantiles,
-        axes=axes_gufunc,
+        axes=axes,
     )
 
 
