@@ -7,7 +7,7 @@ following mixins.
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import ModuleType
-from typing import Any
+from typing import Any, Self
 
 import dask.array as da
 import numpy as np
@@ -46,6 +46,9 @@ class Input:
     field: Any
     library: str
     func: Callable
+
+    def copy(self) -> Self:
+        return self.__class__(self.field.copy(), self.library, self.func)
 
 
 def get_input_fixture(module: ModuleType, base_name: str):
@@ -115,7 +118,7 @@ def assert_basic(input: Input, n_output: int, **kwargs) -> tuple[Any]:
     for out in outputs:
         # not all nan
         # bool conversion to force compute for dask/xarray
-        assert bool(np.any(np.isfinite(out)))
+        assert np.any(np.isfinite(out))
 
     return outputs
 
@@ -134,6 +137,23 @@ class Basic:
     def test_base(self, input: Input):
         self.assert_basic(input)
 
+    def test_axes_order(self, input: Input):
+        input = input.copy()
+        # we have in input time, lat, lon
+        # we change it to lon, time, lat
+        kw: dict = {}
+        if input.library == "numpy":
+            input.field = np.transpose(input.field, axes=[2, 0, 1])
+            kw["axes"] = [2, 0]
+        elif input.library == "dask":
+            input.field = da.transpose(input.field, axes=[2, 0, 1])
+            kw["axes"] = [2, 0]
+        elif input.library == "xarray":
+            input.field = input.field.transpose("lon", "time", "lat")
+            kw["dims"] = ["lat", "lon"]
+
+        self.assert_basic(input, **kw)
+
 
 class Window(Basic):
     rectangular_size: dict[str, int]
@@ -147,6 +167,8 @@ class Window(Basic):
         ry, rx = get_window_reach(window_size)
 
         for out in outputs:
+            if "axes" in kwargs:
+                out = np.moveaxis(out, kwargs["axes"], [-2, -1])
             assert np.all(np.isnan(out[..., :, :rx]))  # left
             assert np.all(np.isnan(out[..., :, -rx:]))  # right
             assert np.all(np.isnan(out[..., :ry, :]))  # top
