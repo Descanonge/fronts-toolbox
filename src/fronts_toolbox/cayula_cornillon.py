@@ -144,6 +144,7 @@ def cayula_cornillon_dask(
 
     if axes is None:
         axes = [-2, -1]
+    axes = [range(input_field.ndim)[i] for i in axes]
     # we add a full window to the overlap only on one side. Possibly overkill but
     # computing exactly what we may miss depending on the window size, the block size,
     # and the window step is complicated.

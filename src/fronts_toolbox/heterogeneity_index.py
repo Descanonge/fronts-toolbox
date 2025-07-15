@@ -123,6 +123,7 @@ def components_dask(
 
     if axes is None:
         axes = [-2, -1]
+    axes = [range(input_field.ndim)[i] for i in axes]
     window_reach_x, window_reach_y = get_window_reach(window_size)
     depth = {axes[0]: window_reach_y, axes[1]: window_reach_x}
 
@@ -137,7 +138,7 @@ def components_dask(
         dtype=input_field.dtype,
         meta=np.array((), dtype=input_field.dtype),
         new_axis=0,
-        chunks=tuple([3, *overlap.chunks]),
+        chunks=tuple([(1, 1, 1), *overlap.chunks]),
         # kwargs to the function
         window_size=window_size,
         bins_width=bins_width,
