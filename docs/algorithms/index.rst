@@ -17,8 +17,8 @@ their documentation for details.
 Benchmarks
 ==========
 
-to showcase and test (manually) the algorithms, benchmarks are written for
-every method. You can run them with::
+To showcase and test (manually) the algorithms, benchmarks/showcases are written
+for every algorithm. You can run them with::
 
 
     python -m fronts_toolbox.benchmarks.<name>
@@ -44,10 +44,8 @@ otherwise, the window size can be given as:
   be of size 3 along latitude and size 5 for longitude.
 - for Xarray, a mapping of the dimensions name to the size along that dimension.
 
-.. note::
-
-   Dask functions should support arrays that are chunked along the moving
-   window dimensions (e.g. latitude and longitude).
+For Xarray inputs, the sequence of int is not supported as it could be the
+source of confusion. Use an int or mapping instead.
 
 
 .. toctree::

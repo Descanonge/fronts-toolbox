@@ -44,7 +44,8 @@ That can lengthen the import time quite a bit in the case of Dask and Xarray.
 .. important::
 
    All additional packages (required or optional) must be indicated in the
-   'tests' optional dependencies in ``pyproject.toml``.
+   'tests' optional dependencies in ``pyproject.toml``, and in their
+   documentaion.
 
 Dispatcher
 ----------
@@ -122,20 +123,19 @@ This necessites dealing with looping over those dimensions and specifying axes
 placement.
 
 For Numpy, if you intend to compile your function with Numba, using
-:func:`numba.guvectorize` gives a generalized universal function.
-Otherwise :class:`numpy.vectorize` and :func:`numpy.frompyfunc` can do the job,
-however they do not handle keyword arguments. If needed, use ``np.vectorize``
-with the signature given by :func:`.util.get_vectorized_signature`.
+:func:`numba.guvectorize` gives a generalized universal function. Sadly
+:class:`numpy.vectorize` and :func:`numpy.frompyfunc` cannot deal with
+*generalized* ufuncs. Instead you can use :func:`.util.apply_vectorized`. It
+only works for functions that take and return a single array and preserve its
+shape.
 
 Dask `handles generalized ufuncs
-<https://docs.dask.org/en/latest/array-gufunc.html>`__ gracefully and allows to
-convert a Python function to a generalized ufunc with
-:class:`~dask.array.gufunc.gufunc` and :func:`~dask.array.gufunc.as_gufunc`.
-This onlys works for Dask arrays though.
-
+<https://docs.dask.org/en/latest/array-gufunc.html>`__ and even allows to
+convert a Python function to a generalized ufunc compatible with Dask arrays
+(and only those).
 Computations with moving windows will either need to avoid chunking along the
-core dimensions or deal with
-[overlap](https://docs.dask.org/en/latest/array-overlap.html).
+core dimensions or deal with `overlap
+<https://docs.dask.org/en/latest/array-overlap.html>`__.
 
 Xarray handles any function working on Numpy arrays with
 :func:`xarray.apply_ufunc`. If there is a need to use a specialized Dask
@@ -165,7 +165,7 @@ Note that when using ``guvectorize`` with ``target="parallel"`` and
 <https://github.com/numba/numba/issues/8085>`__). To avoid this, you can use
 :func:`.util.guvectorize_lazy`. This decorator takes all the arguments of
 ``guvectorize``, and returns a function that, when called, will compile as
-usual. This defers the faulty cached retrieval until execution. It also lets the
+usual. This defers the faulty cache retrieval until execution. It also lets the
 user change compilation arguments at runtime (to change the target for
 instance). Here is a small example::
 
@@ -211,17 +211,16 @@ Axes management
 ===============
 
 It is probable you need to give your function the indices of core axes it must
-work onto (typically the axes corresponding to latitude and longitude). If you
-have created a generalized universal function with numba (see :ref:`above
-<dev-numba>`), this will be taken care of. But you still need to specify the
-axes indices to the gufunc via the "axes" keyword argument, whose syntax is not
-the simplest (see :external+numpy:doc:`reference/ufuncs`).
+work onto (typically the axes corresponding to latitude and longitude). When
+working with generalized universal function you will need to specify the axes
+indices to the gufunc via the "axes" keyword argument, whose syntax is not the
+simplest (see :external+numpy:doc:`reference/ufuncs`).
 
-I suggest here to simplify things for the user. They only have to supply
-a sequence of indices (or of dimensions for xarray). It then is accommodated to
-the gufunc. The function :func:`.util.get_axes_kwarg` will automatically try to
-do that. For example for a ufunc *function* whose core axes are specified as
-"y,x" in its signature.
+I suggest here to simplify things for the user. They only have to supply a
+sequence of indices (or of dimensions for xarray) which is then is accommodated
+to the gufunc. The function :func:`.util.get_axes_kwarg` will automatically try
+to do that from a given signature. For instance if the core axes are specified
+as ``y,x``::
 
 .. tab-set::
 
@@ -264,7 +263,7 @@ do that. For example for a ufunc *function* whose core axes are specified as
                 if dims is None:
                     dims = DEFAULT_DIMS
 
-                axes = dims = [d for d in input_field.dims if d in dims]
+                axes = [d for d in input_field.dims if d in dims]
 
                 # axes can then be passed to the Numpy or Dask function
 
@@ -279,11 +278,11 @@ implementation. There are several ways to go about it.
 You can require a mask argument that is obtained outside of the function (for
 instance with :meth:`xarray.DataArray.isnull`).
 
-You can compute the mask directly in the function, using
-:data:`~np.isfinite(field) <numpy.isfinite>`. This has the advantage of
-simplifying the signature, and can give you more control over how and when the
-mask is computed. More importantly, it can reduce the operation count when using
-Dask (since you avoid a ``da.isfinite`` call outside the function).
+You can compute the mask directly in the function, using :data:`numpy.isfinite`.
+This has the advantage of simplifying the signature, and can give you more
+control over how and when the mask is computed. More importantly, it can reduce
+the operation count when using Dask (since you avoid a ``da.isfinite`` call
+outside the function).
 
 .. note::
 
@@ -319,13 +318,13 @@ Each algorithm should have a single documentation page in ``doc/algorithms/``.
 It must be indexed in the relevant toctree in ``doc/algorithms/index.rst``.
 
 This page should contain a brief description of the method, eventually with
-implementation details. The goal is to make the method understable, reasonably
-easy to use, but also modifyable by savvy users. If applicable, the
+implementation details. The goal is to make the method understandable,
+reasonably easy to use, but also modifiable by savvy users. If applicable, the
 documentation must contain a list of reference(s) with DOI links.
 
-A "Requirements" section should indicate what packages are required, and for
-what specific features if applicable. The introduction should indicate what
-input types are supported.
+If additional packages are required, they should be specified − along for what
+specific features they are necessary if applicable − in the "Supported input
+types and requirements" section.
 
 The code itself should be properly documented as well. The module must be added
 in the toctree of ``doc/api.rst``. Numpy docstring style is preferred. Type

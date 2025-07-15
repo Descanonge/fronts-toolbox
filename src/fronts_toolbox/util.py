@@ -60,14 +60,20 @@ def apply_vectorized(
 
     Parameters
     ----------
-    n_input:
-        The number of input arrays.
-    n_output:
-        The number of output arrays.
-    n_core:
+    func:
+        Function to apply. Must take a *single* array with ``n_dim_core`` axes and
+        return a single output array of the same shape.
+    input_field:
+        The input array.
+    axes:
+        The core dimensions indices. If None the last axes of the array are taken.
+    n_dim_core:
         The number of core dimensions.
-    n_kwargs:
-        The number of keyword arguments to pass to the function.
+    kwargs:
+        Passed to the function.
+
+
+    :returns: A single output array. Has the same shape and axes order as the input.
     """
     n_dim_array = input_field.ndim
     last_axes = list(range(n_dim_array - n_dim_core, n_dim_array))

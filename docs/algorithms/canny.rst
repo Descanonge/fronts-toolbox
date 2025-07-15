@@ -75,6 +75,15 @@ when detecting oceanic fronts. For that reason, it is possible to omit that
 step by passing ``hysteresis=False``. In this case, both weak and strong edges
 are returned.
 
+.. important::
+
+   The hysteresis can have non-local effects (a weak edge is affected by a
+   strong edge at the other end of the image if they are connected). It cannot
+   be applied to a Dask array that is chunked along one of the dimension.
+   Rechunk beforehand, for instance if using Xarray::
+
+     input_field = input_field.chunk(lon=-1, lat=-1)
+
 Functions
 =========
 

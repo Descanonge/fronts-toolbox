@@ -127,7 +127,7 @@ References
 ==========
 
 .. [cayula_1992] Cayula J.-F., Cornillon P. “Edge Detection Algorithm for SST
-         Images”. **J. Atmos. Oceanic Tech.* **9.1**, p. 67-80,
+         Images”. *J. Atmos. Oceanic Tech.* **9.1**, p. 67-80,
          DOI:`10.1175/1520-0426(1992)009<0067:edafsi>2.0.co;2
          <https://doi.org/10.1175/1520-0426(1992)009%3c0067:edafsi%3e2.0.co;2>`__,
          1992
