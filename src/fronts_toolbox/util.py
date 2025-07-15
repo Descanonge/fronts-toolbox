@@ -49,7 +49,7 @@ _DTin = TypeVar("_DTin", bound=np.dtype)
 _DTout = TypeVar("_DTout", bound=np.dtype)
 
 
-def apply_as_gufunc(
+def apply_vectorized(
     func: Callable[[np.ndarray[_Size, _DTin]], np.ndarray[_Size, _DTout]],
     input_field: np.ndarray[_Size, _DTin],
     axes: Sequence[int] | None = None,
