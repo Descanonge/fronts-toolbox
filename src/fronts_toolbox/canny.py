@@ -177,6 +177,12 @@ def canny_dask(
     # we share 2 additional pixels. We need the gradient of the 8 closest neighbors,
     # which is computed over a 3x3 window (for each neighbor)
     depth = {axes[0]: 2, axes[1]: 2}
+
+    if hysteresis and any(
+        input_field.chunksize[i] != input_field.shape[i] for i in axes
+    ):
+        raise RuntimeError("Cannot apply hysteresis along chunked dimensions.")
+
     output = da.map_overlap(
         canny_numpy,
         input_field,

@@ -59,6 +59,7 @@ if __name__ == "__main__":
         sample("ESA-CCI-C3S")
         .analysed_sst.isel(time=0)
         .sel(lat=slice(15, 55), lon=slice(-82, -40))
+        .chunk(lat=-1, lon=-1)
     )
     fronts = canny_xarray(sst)
     plot_one(sst, fronts, "CCI/C3S L4")
