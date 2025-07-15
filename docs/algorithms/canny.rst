@@ -79,7 +79,7 @@ are returned.
 
    The hysteresis can have non-local effects (a weak edge is affected by a
    strong edge at the other end of the image if they are connected). It cannot
-   be applied to a Dask array that is chunked along one of the dimension.
+   be applied to a Dask array that is chunked along one of the core dimension.
    Rechunk beforehand, for instance if using Xarray::
 
      input_field = input_field.chunk(lon=-1, lat=-1)
