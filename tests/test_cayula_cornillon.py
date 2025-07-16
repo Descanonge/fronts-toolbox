@@ -4,17 +4,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from fronts_toolbox import cayula_cornillon
-from tests.core import (
-    Basic,
-    Histogram,
-    Input,
-    Window,
-    WindowStep,
-    get_input_fixture,
-    sst_dask,
-    sst_numpy,
-    sst_xarray,
-)
+from tests.core import Basic, Histogram, Input, Window, WindowStep, get_input_fixture
 
 input = get_input_fixture(cayula_cornillon, "cayula_cornillon")
 
@@ -36,4 +26,4 @@ class TestEdges(Histogram, WindowCC, WindowStep):
 def test_dask_correctness(sst_numpy, sst_dask):
     edges_numpy = cayula_cornillon.cayula_cornillon_numpy(sst_numpy)
     edges_dask = cayula_cornillon.cayula_cornillon_dask(sst_dask)
-    assert_allclose(edges_dask, edges_numpy, atol=1)
+    assert_allclose(edges_dask, edges_numpy)

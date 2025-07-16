@@ -15,28 +15,7 @@ import pytest
 import xarray as xr
 from _pytest.fixtures import FixtureRequest
 
-from fronts_toolbox.benchmarks.fields import sample
 from fronts_toolbox.util import get_window_reach
-
-## Fixtures
-
-
-@pytest.fixture
-def sst_xarray():
-    """MODIS SST around north atlantic. Follow (512,1024) chunks."""
-    return sample("MODIS").sst4.isel(
-        lat=slice(2 * 512, 4 * 512), lon=slice(2 * 1024, 3 * 1024), time=[0, 1]
-    )
-
-
-@pytest.fixture
-def sst_dask(sst_xarray):
-    return sst_xarray.chunk(time=1, lat=512, lon=512).data
-
-
-@pytest.fixture
-def sst_numpy(sst_xarray):
-    return sst_xarray.to_numpy()
 
 
 @dataclass
@@ -51,7 +30,9 @@ class Input:
         return self.__class__(self.field.copy(), self.library, self.func)
 
 
-def get_input_fixture(module: ModuleType, base_name: str):
+def get_input_fixture(
+    module: ModuleType, base_name: str
+) -> Callable[[FixtureRequest], Input]:
     """Call to create input fixture."""
 
     @pytest.fixture

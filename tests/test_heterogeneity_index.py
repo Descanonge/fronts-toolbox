@@ -8,9 +8,6 @@ from tests.core import (
     Histogram,
     Window,
     get_input_fixture,
-    sst_dask,
-    sst_numpy,
-    sst_xarray,
 )
 
 input = get_input_fixture(heterogeneity_index, "components")
