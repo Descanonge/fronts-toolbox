@@ -13,7 +13,7 @@ to Numpy arrays, `Dask <https://dask.org/>`__ arrays, or `Xarray
 This makes creating and modifying those functions easier (especially for
 non-specialists) than if they were written in Fortran or C extensions.
 
-.. grid:: 3
+.. grid:: 4
 
    .. grid-item-card:: Algorithms
       :link: algorithms
@@ -22,6 +22,12 @@ non-specialists) than if they were written in Fortran or C extensions.
       Front detection algorithms,
       filters to apply before front detection,
       post-processing of detected fronts
+
+   .. grid-item-card:: Gallery
+      :link: gallery
+      :link-alt: gallery
+
+      Examples of applying the various algorithms.
 
    .. grid-item-card:: Developer's guide
       :link: dev-guide.html
@@ -48,6 +54,8 @@ Contents
    :maxdepth: 2
 
    algorithms/index
+
+   gallery/index
 
    dev-guide
 

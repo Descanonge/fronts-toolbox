@@ -23,6 +23,7 @@ print(f"{project}: {version}")
 ## General configuration
 
 extensions = [
+    "nbsphinx",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -72,6 +73,9 @@ intersphinx_mapping = {
     "skimage": ("https://scikit-image.org/docs/stable", None),
     "xarray_histogram": ("https://xarray-histogram.readthedocs.io/en/stable", None),
 }
+
+## nbsphinx config
+nbsphinx_execute = "always"
 
 ## Options for HTML output
 
