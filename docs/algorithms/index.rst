@@ -14,22 +14,6 @@ While Dask and Xarray are optional, some algorithms may require additional
 dependencies (beyond numpy and numba). They must be installed by hand. Check
 their documentation for details.
 
-Benchmarks
-==========
-
-To showcase and test (manually) the algorithms, benchmarks/showcases are written
-for every algorithm. You can run them with::
-
-
-    python -m fronts_toolbox.benchmarks.<name>
-
-
-Some benchmarks use idealized data generated on the spot, some can use data
-samples stored on Zenodo (`doi:10.5281/zenodo.15769617
-<doi.org/10.5281/zenodo.15769617>`__). You will need `pooch
-<https://pypi.org/project/pooch/>`__ and Xarray installed to run them
-successfully.
-
 .. _window_size_user:
 
 Moving window size

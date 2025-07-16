@@ -296,20 +296,15 @@ Those tests only check if the function executes for different kinds of input, as
 well as the output metadata. They do not test for correctness, though you are
 welcome to write more advanced test if your algorithm allows it.
 
-To check the actual output of your function, please add a benchmark script to
-the :mod:`.benchmarks` module. The script is here to showcase the application of
-your algorithm to idealized data or real-life samples (both available in
-:mod:`.benchmarks.fields`).
+To check the actual output of your function, please add a jupyter notebook to
+the documentation in ``doc/gallery/``. The notebook is here to showcase the
+application of your algorithm to idealized data or real-life samples (both
+available in :mod:`._fields`).
 
 Some benchmarks can use data samples stored on Zenodo
 (`doi:10.5281/zenodo.15769617 <http://doi.org/10.5281/zenodo.15769617>`__). Use
-:func:`.fields.sample` to access them in the form of Xarray datasets.
+:func:`._fields.sample` to access them in the form of Xarray datasets.
 Open an issue to add more data if necessary.
-
-.. important::
-
-    All benchmarks will be run during automatic testing. They must complete
-    without raising exceptions.
 
 Documentation
 =============
