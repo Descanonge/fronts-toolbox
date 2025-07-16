@@ -12,6 +12,16 @@ input = get_input_fixture(canny, "canny")
 @pytest.mark.parametrize("input", ["numpy", "dask", "xarray"], indirect=True)
 class TestComponents(Basic):
     n_output = 1
+    # test hysteresis separately, not supported by Dask
+    default_kwargs = dict(hysteresis=False)
+
+    def test_hysteresis_numpy(self, input):
+        if input.library == "dask":
+            input.field = input.field.rechunk((1, -1, -1))
+        elif input.library == "xarray":
+            input.field = input.field.chunk(time=1, lat=-1, lon=-1)
+
+        self.assert_basic(input, hysteresis=True)
 
 
 def test_dask_correctness(sst_numpy, sst_dask):
