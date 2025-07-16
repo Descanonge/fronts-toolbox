@@ -35,6 +35,8 @@ docs = [
     'sphinx-design',
     'sphinx-copybutton',
     'nbsphinx',
+    'jupyterlab',
+    'ipykernel',
 ]
 tests = [
     'pytest>=7.4',
