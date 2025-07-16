@@ -1,4 +1,25 @@
-"""Heterogeneity Index."""
+"""Heterogeneity Index.
+
+.. rubric:: Implementation details
+
+The core function computing components should return three arrays. However Dask does
+not support having multiple outputs. I tried to add a ``np.stack`` operation after
+getting the components, but it would throw off Dask completely (it would compute the
+components three times, a real mess).
+
+Instead, the core function returns a single output array, with an additional dimension
+at the end that corresponds to the components.
+
+.. note::
+
+    I decided to put the components dimension last (y,x,c) because the main loop is on
+    y/x. I guess it is better to put it on the fastest loop, but I would have to run
+    benchmarks to make sure it is more efficient.
+
+To apply ``numba.guvectorize`` we have a slight issue since all the output dimensions
+must also appear in the inputs. That means we have to pass a dummy argument of size 3
+(c).
+"""
 
 from __future__ import annotations
 
@@ -17,7 +38,6 @@ from fronts_toolbox.util import (
     detect_bins_shift,
     dims_help,
     doc,
-    get_axes_kwarg,
     get_dims_and_window_size,
     get_window_reach,
     guvectorize_lazy,
@@ -88,19 +108,25 @@ def components_numpy(
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
 
-    func = components_core(gufunc)
     if axes is not None:
-        kwargs["axes"] = get_axes_kwarg(func.signature, axes)
+        # (y,x),(c),(w),(),()->(y,x,c)
+        kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
-    components = func(
+    func = components_core(gufunc)
+    output = func(
         input_field,
+        list(range(3)),  # dummy argument of size 3, needed to accomadate dask
         window_reach,
         bins_width,
         bins_shift,
         **kwargs,
     )
 
-    return components
+    stdev = output[..., 0]
+    skew = output[..., 1]
+    bimod = output[..., 2]
+
+    return stdev, skew, bimod
 
 
 @doc(_components_doc, input_field_type="dask.array.Array", rtype="dask.array.Array")
@@ -116,42 +142,44 @@ def components_dask(
     """Compute components from Dask array."""
     import dask.array as da
 
-    # Dask only accepts functions with a single output
-    def components_stacked(*args, **kwargs):
-        components = components_numpy(*args, **kwargs)
-        return np.stack(components)
+    window_reach_x, window_reach_y = get_window_reach(window_size)
+
+    if bins_width == 0.0:
+        raise ValueError("bins_width cannot be 0.")
 
     if axes is None:
         axes = [-2, -1]
-    axes = [range(input_field.ndim)[i] for i in axes]
-    window_reach_x, window_reach_y = get_window_reach(window_size)
-    depth = {axes[0]: window_reach_y, axes[1]: window_reach_x}
+    ndim = input_field.ndim
+    axes = [range(ndim)[i] for i in axes]
 
-    # We separate the overlap workflow because the trim is not happening on the same
-    # axes as the input (there is an additional axis for components)
+    # (y,x),(c),(w),(),()->(y,x,c)
+    kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, ndim)]
+
+    depth = {axes[0]: window_reach_y, axes[1]: window_reach_x}
     overlap = da.overlap.overlap(input_field, depth=depth, boundary="none")
 
-    components = da.map_blocks(
-        components_stacked,
+    func = components_core(gufunc)
+    output = da.map_overlap(
+        func,
+        # arguments to the function
         overlap,
-        # output
-        dtype=input_field.dtype,
-        meta=np.array((), dtype=input_field.dtype),
-        new_axis=0,
-        chunks=tuple([(1, 1, 1), *overlap.chunks]),
-        # kwargs to the function
-        window_size=window_size,
-        bins_width=bins_width,
-        bins_shift=bins_shift,
+        list(range(3)),  # dummy argument of size 3
+        (window_reach_x, window_reach_y),
+        bins_width,
+        bins_shift,
         **kwargs,
+        # output
+        new_axis=ndim,
+        meta=np.array((), dtype=input_field.dtype),
+        chunks=tuple([*overlap.chunks, (1, 1, 1)]),
     )
+    output = da.overlap.trim_internal(output, depth)
 
-    # need to add one to the axes indices since we added a new dimension at index 0
-    components = da.overlap.trim_internal(
-        components, {i + 1: d for i, d in depth.items()}, boundary="none"
-    )
+    stdev = output[..., 0]
+    skew = output[..., 1]
+    bimod = output[..., 2]
 
-    return tuple(components[:])
+    return stdev, skew, bimod
 
 
 components_dispatcher = Dispatcher(
@@ -163,7 +191,6 @@ components_dispatcher = Dispatcher(
 
 @doc(
     _components_doc,
-    remove=["axes"],
     input_field_type="xarray.DataArray",
     rtype="xarray.DataArray",
     window_size="""\
@@ -345,35 +372,32 @@ def get_components_from_values(
         (
             nt.float32[:, :],
             nt.int64[:],
+            nt.int64[:],
             nt.float64,
             nt.float64,
-            nt.float32[:, :],
-            nt.float32[:, :],
-            nt.float32[:, :],
+            nt.float32[:, :, :],
         ),
         (
             nt.float64[:, :],
             nt.int64[:],
+            nt.int64[:],
             nt.float64,
             nt.float64,
-            nt.float64[:, :],
-            nt.float64[:, :],
-            nt.float64[:, :],
+            nt.float64[:, :, :],
         ),
     ],
-    "(y,x),(w),(),()->(y,x),(y,x),(y,x)",
+    "(y,x),(c),(w),(),()->(y,x,c)",
     nopython=True,
     cache=True,
     target="parallel",
 )
 def components_core(
     input_image: np.ndarray[tuple[int, int], _DT],
+    dummy: np.ndarray[tuple[int], np.dtype[np.integer]],
     window_reach: np.ndarray[tuple[int], np.dtype[np.integer]],
     bins_width: float,
     bins_shift: float,
-    stdev: np.ndarray[tuple[int, int], _DT],
-    skew: np.ndarray[tuple[int, int], _DT],
-    bimod: np.ndarray[tuple[int, int], _DT],
+    output: np.ndarray[tuple[int, int], _DT],
 ):
     """Compute HI components from input field image.
 
@@ -395,9 +419,6 @@ def components_core(
         input variables.
     window_reach:
         Reach of the window for each axis (y, x).
-        The 'reach' is the number of pixels between the center pixel and the
-        edge. For instance, a ``3x3`` window will have a reach of 1.
-
         The axis ordering **must** correspond to that of `input_image`. For instance, if
         `input_image` is ordered as ``[..., y, x]``, then `window_reach` must be ordered
         as ``[reach_y, reach_x]``.
@@ -424,9 +445,7 @@ def components_core(
     # max number of pixel inside the moving window
     win_npixels = np.prod(2 * window_reach + 1)
 
-    stdev[:] = np.nan
-    skew[:] = np.nan
-    bimod[:] = np.nan
+    output[:] = np.nan
 
     mask = np.isfinite(input_image)
 
@@ -450,12 +469,9 @@ def components_core(
 
             # pass the array of values (we use ravel to make sure it is
             # contiguous in memory)
-            stdev_win, skew_win, bimod_win = get_components_from_values(
+            output[target_y, target_x, :] = get_components_from_values(
                 np.ravel(win_values_filtered), bins_width, bins_shift
             )
-            stdev[target_y, target_x] = stdev_win
-            skew[target_y, target_x] = skew_win
-            bimod[target_y, target_x] = bimod_win
 
 
 ## Normalization
