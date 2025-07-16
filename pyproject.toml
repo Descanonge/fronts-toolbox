@@ -34,6 +34,7 @@ docs = [
     'pydata-sphinx-theme==0.15.*',
     'sphinx-design',
     'sphinx-copybutton',
+    'nbsphinx',
 ]
 tests = [
     'pytest>=7.4',
