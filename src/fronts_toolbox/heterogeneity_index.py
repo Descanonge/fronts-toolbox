@@ -159,7 +159,7 @@ def components_dask(
     overlap = da.overlap.overlap(input_field, depth=depth, boundary="none")
 
     func = components_core(gufunc)
-    output = da.map_overlap(
+    output = da.map_blocks(
         func,
         # arguments to the function
         overlap,
