@@ -31,7 +31,7 @@ DEFAULT_DIMS: list[Hashable] = ["lat", "lon"]
 logger = logging.getLogger(__name__)
 
 
-def contextual_median_numpy(
+def cmf_numpy(
     input_field: NDArray,
     size: int = 3,
     iterations: int = 1,
@@ -70,7 +70,7 @@ def contextual_median_numpy(
         raise ValueError("Window size should be odd.")
     reach = int(np.floor(size / 2))
 
-    func = contextual_median_core(gufunc)
+    func = cmf_core(gufunc)
 
     if axes is not None:
         kwargs["axes"] = get_axes_kwarg(func.signature, axes, "y,x")
@@ -82,7 +82,7 @@ def contextual_median_numpy(
     return output
 
 
-def contextual_median_dask(
+def cmf_dask(
     input_field: DaskArray,
     size: int = 3,
     iterations: int = 1,
@@ -126,7 +126,7 @@ def contextual_median_dask(
     ndim = input_field.ndim
     depth = {ndim - 2: 1, ndim - 1: 1}
 
-    func = contextual_median_core(gufunc)
+    func = cmf_core(gufunc)
 
     if axes is not None:
         kwargs["axes"] = get_axes_kwarg(func.signature, axes, "y,x")
@@ -140,14 +140,14 @@ def contextual_median_dask(
     return output
 
 
-contextual_median_mapper = Dispatcher(
+cmf_mapper = Dispatcher(
     "contextual_median",
-    numpy=contextual_median_numpy,
-    dask=contextual_median_dask,
+    numpy=cmf_numpy,
+    dask=cmf_dask,
 )
 
 
-def contextual_median_xarray(
+def cmf_xarray(
     input_field: DataArray,
     size: int = 3,
     iterations: int = 1,
@@ -193,7 +193,7 @@ def contextual_median_xarray(
         raise IndexError(f"`dims` should be of length 2 ({dims})")
 
     axes = sorted(input_field.get_axis_num(dims))
-    func = contextual_median_mapper.get_func(input_field.data)
+    func = cmf_mapper.get_func(input_field.data)
     output = func(
         input_field.data, size=size, iterations=iterations, axes=axes, gufunc=gufunc
     )
@@ -224,7 +224,7 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
     target="parallel",
     cache=True,
 )
-def contextual_median_core(
+def cmf_core(
     field: np.ndarray[tuple[int, ...], _DT],
     window_reach: int,
     output: np.ndarray[tuple[int, ...], _DT],
