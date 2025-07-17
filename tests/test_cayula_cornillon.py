@@ -9,7 +9,9 @@ from tests.core import Histogram, Input, get_input_fixture
 input = get_input_fixture(cayula_cornillon, "cayula_cornillon")
 
 
-@pytest.mark.parametrize("input", ["numpy", "dask", "xarray"], indirect=True)
+@pytest.mark.parametrize(
+    "input", ["numpy", "dask", "xarray_dask", "xarray_numpy"], indirect=True
+)
 class TestFronts(Histogram):
     n_output = 1
     default_kwargs = dict(window_size=32)

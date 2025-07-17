@@ -23,9 +23,10 @@ class Input:
     field: Any
     library: str
     func: Callable
+    type: str | None
 
     def copy(self) -> Self:
-        return self.__class__(self.field.copy(), self.library, self.func)
+        return self.__class__(self.field.copy(), self.library, self.func, self.type)
 
 
 def get_input_fixture(
@@ -36,10 +37,16 @@ def get_input_fixture(
     @pytest.fixture
     def input(request: FixtureRequest):
         """Indirect fixture."""
-        library = request.param
-        field = request.getfixturevalue(f"{fixture}_{library}")
+        if request.param.startswith("xarray"):
+            library = "xarray"
+            typ = request.param.split("_")[-1]
+        else:
+            library = request.param
+            typ = None
+
+        field = request.getfixturevalue(f"{fixture}_{request.param}")
         func = getattr(module, f"{base_name}_{library}")
-        return Input(field, library, func)
+        return Input(field, library, func, typ)
 
     return input
 
@@ -83,7 +90,7 @@ def assert_basic(input: Input, n_output: int, **kwargs) -> tuple[Any]:
         if input.library == "dask":
             assert input.field.chunks == out.chunks
 
-        if input.library == "xarray" and input.field.chunks is not None:
+        if input.library == "xarray" and input.type == "dask":
             # output is also chunked
             assert out.chunks is not None
             # correct chunk sizes (only for already existing dimensions)
@@ -115,7 +122,7 @@ class Basic:
     def dechunk_core(self, input: Input) -> Input:
         if input.library == "dask":
             input.field = input.field.rechunk((1, -1, -1))
-        if input.library == "xarray":
+        if input.library == "xarray" and input.type == "dask":
             input.field = input.field.chunk(time=1, lat=-1, lon=-1)
         return input
 

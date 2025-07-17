@@ -15,7 +15,9 @@ from tests.core import (
 input = get_input_fixture(heterogeneity_index, "components")
 
 
-@pytest.mark.parametrize("input", ["numpy", "dask", "xarray"], indirect=True)
+@pytest.mark.parametrize(
+    "input", ["numpy", "dask", "xarray_dask", "xarray_numpy"], indirect=True
+)
 class TestComponents(Histogram):
     n_output = 3
     default_kwargs = dict(window_size=5)
@@ -73,8 +75,15 @@ def components_dask(sst_dask):
 
 
 @pytest.fixture()
-def components_xarray(sst_xarray):
-    return heterogeneity_index.components_xarray(sst_xarray, window_size=5)
+def components_xarray_dask(sst_xarray_dask):
+    return heterogeneity_index.components_xarray(sst_xarray_dask, window_size=5)
+
+
+@pytest.fixture()
+def components_xarray_numpy(sst_xarray_numpy):
+    return heterogeneity_index.components_xarray(
+        sst_xarray_numpy, window_size=5
+    ).compute()
 
 
 components = get_input_fixture(
@@ -82,7 +91,9 @@ components = get_input_fixture(
 )
 
 
-@pytest.mark.parametrize("components", ["numpy", "dask", "xarray"], indirect=True)
+@pytest.mark.parametrize(
+    "components", ["numpy", "dask", "xarray_dask", "xarray_numpy"], indirect=True
+)
 class TestNormalization:
     def test_components(self, components):
         coefs = components.func(components.field)
