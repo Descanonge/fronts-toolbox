@@ -26,9 +26,9 @@ from fronts_toolbox.util import (
 )
 
 if TYPE_CHECKING:
-    from dask.array import Array as DaskArray
+    import dask.array
+    import xarray
     from numpy.typing import NDArray
-    from xarray import DataArray
 
 _Size = TypeVar("_Size", bound=tuple[int, ...])
 
