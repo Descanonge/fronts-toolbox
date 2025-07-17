@@ -7,11 +7,10 @@ import logging
 from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
 from functools import lru_cache, wraps
 from textwrap import dedent, indent
-from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 from numba import guvectorize
-from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from dask.array import Array as DaskArray
@@ -20,6 +19,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+_Size = TypeVar("_Size", bound=tuple[int, ...])
+_DTin = TypeVar("_DTin", bound=np.dtype)
+_DTout = TypeVar("_DTout", bound=np.dtype)
 Function = TypeVar("Function", bound=Callable)
 
 
@@ -42,11 +44,6 @@ def get_window_reach(window_size: int | Sequence[int]) -> list[int]:
 
     window_reach = list(int(np.floor(w / 2)) for w in window_size)
     return window_reach
-
-
-_Size = TypeVar("_Size", bound=tuple[int, ...])
-_DTin = TypeVar("_DTin", bound=np.dtype)
-_DTout = TypeVar("_DTout", bound=np.dtype)
 
 
 def apply_vectorized(
@@ -120,7 +117,7 @@ def get_axes_kwarg(
     """
     core_indices = {dim: i for dim, i in zip(order.split(","), axes, strict=True)}
 
-    in_args, out_args = signature.split("->", 2)
+    in_args, out_args = signature.split("->", 1)
     args_axes = []
     for args in [in_args, out_args]:
         for arg in args.split("),("):
