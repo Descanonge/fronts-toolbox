@@ -128,7 +128,7 @@ def components_numpy(
     return stdev, skew, bimod
 
 
-@doc(_components_doc, input_field_type="dask.array.Array", rtype="dask.array.Array")
+@doc(_components_doc)
 def components_dask(
     input_field: dask.array.Array,
     window_size: int | Sequence[int],
@@ -190,8 +190,6 @@ components_dispatcher = Dispatcher(
 
 @doc(
     _components_doc,
-    input_field_type="xarray.DataArray",
-    rtype="xarray.DataArray",
     window_size="""\
     Total size of the moving window, in pixels. If a single integer, the size is taken
     identical for both axis. Otherwise it can be a mapping of the dimensions names to

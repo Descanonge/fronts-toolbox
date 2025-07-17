@@ -34,7 +34,7 @@ extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", ".virtual_documents"]
 
 add_module_names = False
 toc_object_entries_show_parents = "hide"
