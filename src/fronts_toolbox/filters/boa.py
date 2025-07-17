@@ -87,7 +87,7 @@ def boa_dask(
         boa_numpy,
         input_field,
         # overlap
-        depth={axes[0]: 1, axes[1]: 1},
+        depth={axes[0]: 2, axes[1]: 2},
         boundary="none",
         # output
         dtype=input_field.dtype,
