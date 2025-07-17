@@ -11,12 +11,6 @@ moving-window. Based on |cayula_1992|_.
    This only implements the histogram analysis and cohesion check. This does not
    include the cloud detection or contour following.
 
-.. note::
-
-    Showcase/benchmark with::
-
-        python -m fronts_toolbox.benchmarks.cayula_cornillon
-
 Definition
 ==========
 
@@ -102,6 +96,29 @@ can thus exceed one, and fronts can be wider than one pixel.
 
     By default, the window steps are equal to its size, so there is no overlap.
     However the detected fronts can be sensitive to the window placement.
+
+Dask support
+============
+
+When there is no overlap between shifts of the moving window, *ie* when the
+``window_step`` is equal to the ``window_size``, the result is potentially
+sensitive to the absolute placement of the window. When having a Dask array
+chunked along the core dimensions (latitude and/or longitude), there is no
+guarantee that the window placement will be the same as if the image was
+a single chunk.
+
+In the example below, the chunk size is slightly too small. The window placement
+in the second block will not be the same as if the image was not chunked (the
+dashed red lines).
+
+.. image:: cayula_cornillon_blocks.svg
+
+Because of this, if the core dimensions are chunked, the function will only
+accept input arrays where the block size is a multiple of the window *step* (
+which is equal to the window size by default).
+
+Be careful in the combination of window size and step that you choose if your
+array in chunked in the core dimensions.
 
 Functions
 =========

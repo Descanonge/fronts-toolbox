@@ -6,12 +6,6 @@ Heterogeneity-index
 An index reflecting the heterogeneity of the input field (typically SST).
 It was first proposed by |liu_2016|_ and then updated by |haeck_2023|_.
 
-.. note::
-
-    Showcase/benchmark with::
-
-        python -m fronts_toolbox.benchmarks.heterogeneity_index
-
 Definition
 ==========
 

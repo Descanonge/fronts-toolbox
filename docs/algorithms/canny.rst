@@ -15,12 +15,6 @@ with minor adjustments to make it more flexible.
    The implementation does not include the typical Gaussian filter. This allows
    to apply (or not) any filter that may not smooth features as much.
 
-.. note::
-
-   Showcase/benchmark with::
-
-       python -m fronts_toolbox.benchmarks.canny
-
 Definition
 ==========
 
