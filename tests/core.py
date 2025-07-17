@@ -15,8 +15,6 @@ import pytest
 import xarray as xr
 from _pytest.fixtures import FixtureRequest
 
-from fronts_toolbox.util import get_window_reach
-
 
 @dataclass
 class Input:
@@ -31,7 +29,7 @@ class Input:
 
 
 def get_input_fixture(
-    module: ModuleType, base_name: str
+    module: ModuleType, base_name: str, fixture: str = "sst"
 ) -> Callable[[FixtureRequest], Input]:
     """Call to create input fixture."""
 
@@ -39,7 +37,7 @@ def get_input_fixture(
     def input(request: FixtureRequest):
         """Indirect fixture."""
         library = request.param
-        field = request.getfixturevalue(f"sst_{library}")
+        field = request.getfixturevalue(f"{fixture}_{library}")
         func = getattr(module, f"{base_name}_{library}")
         return Input(field, library, func)
 
@@ -55,7 +53,7 @@ def assert_basic(input: Input, n_output: int, **kwargs) -> tuple[Any]:
     - correct type (depending on library)
     - shape is preserved
     - chunks are preserved for Dask arrays
-    - output is not all NaNs
+    - output is not all NaNs, not all the same value
 
     Returns computed version of Dask and Xarray outputs!
     """
@@ -98,8 +96,11 @@ def assert_basic(input: Input, n_output: int, **kwargs) -> tuple[Any]:
 
     for out in outputs:
         # not all nan
-        # bool conversion to force compute for dask/xarray
-        assert np.any(np.isfinite(out))
+        mask = np.isfinite(out)
+        assert np.any(mask)
+        # not all the same value
+        first_valid = out[tuple([w[0] for w in np.where(mask)])]
+        assert not np.all(out == first_valid)
 
     return outputs
 
@@ -110,6 +111,13 @@ class Basic:
     default_kwargs: dict = {}
     n_output: int = 1
     """Number of outputs of the function."""
+
+    def dechunk_core(self, input: Input) -> Input:
+        if input.library == "dask":
+            input.field = input.field.rechunk((1, -1, -1))
+        if input.library == "xarray":
+            input.field = input.field.chunk(time=1, lat=-1, lon=-1)
+        return input
 
     def assert_basic(self, input: Input, **kwargs) -> tuple[Any]:
         kw = self.default_kwargs | kwargs
@@ -136,40 +144,6 @@ class Basic:
         self.assert_basic(input, **kw)
 
 
-class Window(Basic):
-    rectangular_size: dict[str, int]
-
-    def assert_basic(self, input: Input, **kwargs):
-        outputs = super().assert_basic(input, **kwargs)
-
-        window_size = kwargs.get("window_size", self.default_kwargs["window_size"])
-        if isinstance(window_size, dict):
-            window_size = (window_size["lat"], window_size["lon"])
-        ry, rx = get_window_reach(window_size)
-
-        for out in outputs:
-            if "axes" in kwargs:
-                out = np.moveaxis(out, kwargs["axes"], [-2, -1])
-            assert np.all(np.isnan(out[..., :, :rx]))  # left
-            assert np.all(np.isnan(out[..., :, -rx:]))  # right
-            assert np.all(np.isnan(out[..., :ry, :]))  # top
-            assert np.all(np.isnan(out[..., -ry:, :]))  # bottom
-
-        return outputs
-
-    def test_rectangular(self, input: Input):
-        window_size_tuple = tuple(self.rectangular_size.values())
-        if input.library in ["numpy", "dask"]:
-            self.assert_basic(input, window_size=window_size_tuple)
-        if input.library == "xarray":
-            outputs = self.assert_basic(input, window_size=self.rectangular_size)
-            # check attributes
-            for out in outputs:
-                assert out.attrs["window_size"] == window_size_tuple
-                assert out.attrs["window_size_lat"] == window_size_tuple[0]
-                assert out.attrs["window_size_lon"] == window_size_tuple[1]
-
-
 class Histogram(Basic):
     """Test changing the bins width and shift.
 
@@ -183,23 +157,3 @@ class Histogram(Basic):
 
     def test_shift(self, input: Input):
         self.assert_basic(input, bins_shift=0.1)
-
-
-class WindowStep(Basic):
-    """Test changing the moving window shift step.
-
-    This assumes the default step is the window size.
-    """
-
-    def test_overlap(self, input: Input):
-        if input.library in ["numpy", "dask"]:
-            self.assert_basic(input, window_size=32, window_step=[20, 16])
-        if input.library == "xarray":
-            outputs = self.assert_basic(
-                input, window_size=16, window_step=dict(lat=20, lon=16)
-            )
-            # check attributes
-            for out in outputs:
-                assert out.attrs["window_step"] == (20, 16)
-                assert out.attrs["window_step_lat"] == 20
-                assert out.attrs["window_step_lon"] == 16

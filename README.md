@@ -6,7 +6,7 @@ Despite being widely used in the literature, some front-detection algorithms are
 This packages implements different methods directly in Python: there are accelerated by [Numba](https://numba.pydata.org/) and available for Numpy arrays, [Dask](https://dask.org/) arrays, or [Xarray](https://xarray.dev/) data.
 It could also support Cuda arrays if necessary.
 
-The goal of this package is to provide various methods in such a way that they can be easily read and modified by researchers. In that regard, Numba allows to write directly in Python and retain access to a lot of function from Numpy and Scipy. This packages provides a common framework to easily add other algorithms, while benefiting from testing and documentation.
+The goal of this package is to offer various methods in such a way that they can be easily read and modified by researchers. In that regard, Numba allows to write directly in Python and retain access to a lot of function from Numpy and Scipy. This packages provides a common framework to easily add other algorithms, while benefiting from testing and documentation.
 
 ## Documentation
 

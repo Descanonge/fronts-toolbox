@@ -1,12 +1,14 @@
 """Test Heterogeneity Index functions."""
 
+import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
 from fronts_toolbox import heterogeneity_index
+from fronts_toolbox.util import get_window_reach
 from tests.core import (
     Histogram,
-    Window,
+    Input,
     get_input_fixture,
 )
 
@@ -14,16 +16,50 @@ input = get_input_fixture(heterogeneity_index, "components")
 
 
 @pytest.mark.parametrize("input", ["numpy", "dask", "xarray"], indirect=True)
-class TestComponents(Histogram, Window):
+class TestComponents(Histogram):
     n_output = 3
     default_kwargs = dict(window_size=5)
-    rectangular_size = dict(lat=7, lon=3)
+
+    def assert_basic(self, input: Input, **kwargs):
+        outputs = super().assert_basic(input, **kwargs)
+
+        window_size = kwargs.get("window_size", self.default_kwargs["window_size"])
+        if isinstance(window_size, dict):
+            window_size = (window_size["lat"], window_size["lon"])
+        ry, rx = get_window_reach(window_size)
+
+        for out in outputs:
+            if "axes" in kwargs:
+                out = np.moveaxis(out, kwargs["axes"], [-2, -1])
+            if "dims" in kwargs:
+                out = out.transpose("time", "lat", "lon")
+            assert np.all(np.isnan(out[..., :, :rx]))  # left
+            assert np.all(np.isnan(out[..., :, -rx:]))  # right
+            assert np.all(np.isnan(out[..., :ry, :]))  # top
+            assert np.all(np.isnan(out[..., -ry:, :]))  # bottom
+
+        return outputs
+
+    def test_rectangular(self, input: Input):
+        rectangular_size = dict(lat=7, lon=3)
+        window_size_tuple = tuple(rectangular_size.values())
+
+        if input.library in ["numpy", "dask"]:
+            self.assert_basic(input, window_size=window_size_tuple)
+
+        if input.library == "xarray":
+            outputs = self.assert_basic(input, window_size=rectangular_size)
+            # check attributes
+            for out in outputs:
+                assert out.attrs["window_size"] == window_size_tuple
+                assert out.attrs["window_size_lat"] == window_size_tuple[0]
+                assert out.attrs["window_size_lon"] == window_size_tuple[1]
 
 
 def test_dask_correctness(sst_numpy, sst_dask):
-    edges_numpy = heterogeneity_index.components_numpy(sst_numpy, window_size=5)
-    edges_dask = heterogeneity_index.components_dask(sst_dask, window_size=5)
-    assert_allclose(edges_dask, edges_numpy)
+    components_numpy = heterogeneity_index.components_numpy(sst_numpy, window_size=5)
+    components_dask = heterogeneity_index.components_dask(sst_dask, window_size=5)
+    assert_allclose(components_dask, components_numpy)
 
 
 @pytest.fixture()

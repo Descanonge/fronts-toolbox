@@ -16,11 +16,7 @@ class TestComponents(Basic):
     default_kwargs = dict(hysteresis=False)
 
     def test_hysteresis_numpy(self, input):
-        if input.library == "dask":
-            input.field = input.field.rechunk((1, -1, -1))
-        elif input.library == "xarray":
-            input.field = input.field.chunk(time=1, lat=-1, lon=-1)
-
+        input = self.dechunk_core(input)
         self.assert_basic(input, hysteresis=True)
 
 
