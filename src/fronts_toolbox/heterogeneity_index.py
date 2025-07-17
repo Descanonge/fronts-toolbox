@@ -171,7 +171,7 @@ def components_dask(
         # output
         new_axis=ndim,
         meta=np.array((), dtype=input_field.dtype),
-        chunks=tuple([*overlap.chunks, (1, 1, 1)]),
+        chunks=tuple([*overlap.chunks, 3]),
     )
     output = da.overlap.trim_internal(output, depth)
 
