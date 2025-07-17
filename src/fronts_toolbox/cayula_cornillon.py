@@ -145,17 +145,19 @@ def cayula_cornillon_dask(
     if axes is None:
         axes = [-2, -1]
     axes = [range(input_field.ndim)[i] for i in axes]
-    # we add a full window to the overlap only on one side. Possibly overkill but
-    # computing exactly what we may miss depending on the window size, the block size,
-    # and the window step is complicated.
-    depth = {axes[0]: (0, window_size[0]), axes[1]: (0, window_size[1])}
 
-    output = da.map_overlap(
+    if any(
+        input_field.chunksize[i] != input_field.shape[i]
+        and input_field.chunksize[i] % w
+        for i, w in zip(axes, window_step, strict=True)
+    ):
+        raise RuntimeError(
+            "Core dimension chunksize must be a multiple of the window step."
+        )
+
+    output = da.map_blocks(
         cayula_cornillon_numpy,
         input_field,
-        # overlap
-        depth=depth,
-        boundary="none",
         # output
         dtype=np.int64,
         meta=np.array((), dtype=np.int64),
@@ -165,6 +167,7 @@ def cayula_cornillon_dask(
         bins_width=bins_width,
         bins_shift=bins_shift,
         bimodal_criteria=bimodal_criteria,
+        axes=axes,
         **kwargs,
     )
 
@@ -587,9 +590,9 @@ def cayula_cornillon_core(
 
     output[:] = 0
 
-    for pixel_y in prange(size_y, ny, step_y):
+    for pixel_y in prange(0, ny, step_y):
         slice_y = slice(pixel_y, pixel_y + size_y)
-        for pixel_x in prange(size_x, nx, step_x):
+        for pixel_x in prange(0, nx, step_x):
             slice_x = slice(pixel_x, pixel_x + size_x)
             window_flat = field[slice_y, slice_x].flatten()
             window_mask_flat = valid[slice_y, slice_x].flatten()
