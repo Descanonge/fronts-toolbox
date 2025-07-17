@@ -43,11 +43,12 @@ from fronts_toolbox.util import (
     guvectorize_lazy,
     is_dataarray,
     is_dataset,
+    ufunc_kwargs_help,
 )
 
 if TYPE_CHECKING:
-    from dask.array import Array as DaskArray
-    from xarray import DataArray, Dataset
+    import dask.array
+    import xarray
 
 
 log = logging.getLogger(__name__)
@@ -85,9 +86,7 @@ _components_doc = dict(
     avoid artefacts caused by the discretization of the input field data.""",
     axes=axes_help,
     gufunc="Arguments passed to :func:`numba.guvectorize`.",
-    kwargs="""\
-    See available kwargs for universal functions at
-    :external+numpy:ref:`c-api.generalized-ufuncs`.""",
+    kwargs=ufunc_kwargs_help,
     returns="Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.",
 )
 
@@ -131,14 +130,14 @@ def components_numpy(
 
 @doc(_components_doc, input_field_type="dask.array.Array", rtype="dask.array.Array")
 def components_dask(
-    input_field: DaskArray,
+    input_field: dask.array.Array,
     window_size: int | Sequence[int],
     bins_width: float = 0.1,
     bins_shift: float = 0.0,
     axes: Sequence[int] | None = None,
     gufunc: Mapping[str, Any] | None = None,
     **kwargs,
-) -> tuple[DaskArray, DaskArray, DaskArray]:
+) -> tuple[dask.array.Array, dask.array.Array, dask.array.Array]:
     """Compute components from Dask array."""
     import dask.array as da
 
@@ -207,13 +206,13 @@ components_dispatcher = Dispatcher(
     dims=dims_help,
 )
 def components_xarray(
-    input_field: DataArray,
+    input_field: xarray.DataArray,
     window_size: int | Mapping[Hashable, int],
     bins_width: float = 0.1,
     bins_shift: float | bool = True,
     dims: Collection[Hashable] | None = None,
     gufunc: Mapping[str, Any] | None = None,
-) -> Dataset:
+) -> xarray.Dataset:
     """Compute components from Xarray data."""
     import xarray as xr
 
@@ -508,7 +507,9 @@ def coefficients_components_numpy(components: Sequence[NDArray]) -> dict[str, fl
 
 
 @doc(_coef_comp_doc)
-def coefficients_components_dask(components: Sequence[DaskArray]) -> dict[str, float]:
+def coefficients_components_dask(
+    components: Sequence[dask.array.Array],
+) -> dict[str, float]:
     """Find normalization coefficients for all components."""
     import dask.array as da
 
@@ -534,7 +535,7 @@ def coefficients_components_dask(components: Sequence[DaskArray]) -> dict[str, f
     :data:`COMPONENTS_NAMES` (by default, ``stdev``, ``skew``, ``bimod``).""",
 )
 def coefficients_components_xarray(
-    components: Dataset | Sequence[DataArray],
+    components: xarray.Dataset | Sequence[xarray.DataArray],
 ) -> dict[str, float]:
     """Find normalization coefficients for all components."""
     if is_dataset(components):
@@ -572,7 +573,10 @@ coefficients_components_dispatcher = Dispatcher(
     ``bimod``).""",
 )
 def coefficients_components(
-    components: Dataset | Sequence[DataArray] | Sequence[DaskArray] | Sequence[NDArray],
+    components: xarray.Dataset
+    | Sequence[xarray.DataArray]
+    | Sequence[dask.array.Array]
+    | Sequence[NDArray],
 ) -> dict[str, float]:
     """Find normalization coefficients for all components."""
     if is_dataset(components):
@@ -633,7 +637,7 @@ def coefficient_hi_numpy(
 
 @doc(_coef_hi_doc, kwargs="Arguments passed to :func:`dask.array.histogram`.")
 def coefficient_hi_dask(
-    components: Sequence[DaskArray],
+    components: Sequence[dask.array.Array],
     coefficients: Mapping[str, float],
     quantile_target: float = 0.95,
     hi_limit: float = 9.5,
@@ -673,7 +677,7 @@ def coefficient_hi_dask(
     kwargs="Arguments passed to :func:`xarray_histogram.core.histogram`.",
 )
 def coefficient_hi_xarray(
-    components: Dataset | Sequence[DataArray],
+    components: xarray.Dataset | Sequence[xarray.DataArray],
     coefficients: Mapping[str, float],
     quantile_target: float = 0.95,
     hi_limit: float = 9.5,
@@ -729,7 +733,10 @@ coefficient_hi_dispatcher = Dispatcher(
     or :func:`xarray_histogram.core.histogram`.""",
 )
 def coefficient_hi(
-    components: Dataset | Sequence[DataArray] | Sequence[DaskArray] | Sequence[NDArray],
+    components: xarray.Dataset
+    | Sequence[xarray.DataArray]
+    | Sequence[dask.array.Array]
+    | Sequence[NDArray],
     coefficients: Mapping[str, float],
     quantile_target: float = 0.95,
     hi_limit: float = 9.5,
@@ -757,20 +764,24 @@ def apply_coefficients(
 
 @overload
 def apply_coefficients(
-    components: Sequence[DaskArray], coefficients: Mapping[str, float]
-) -> DaskArray: ...
+    components: Sequence[dask.array.Array], coefficients: Mapping[str, float]
+) -> dask.array.Array: ...
 
 
 @overload
 def apply_coefficients(
-    components: Dataset | Sequence[DataArray], coefficients: Mapping[str, float]
-) -> DataArray: ...
+    components: xarray.Dataset | Sequence[xarray.DataArray],
+    coefficients: Mapping[str, float],
+) -> xarray.DataArray: ...
 
 
 def apply_coefficients(
-    components: Dataset | Sequence[NDArray] | Sequence[DaskArray] | Sequence[DataArray],
+    components: xarray.Dataset
+    | Sequence[NDArray]
+    | Sequence[dask.array.Array]
+    | Sequence[xarray.DataArray],
     coefficients: Mapping[str, float],
-) -> DataArray | DaskArray | NDArray:
+) -> xarray.DataArray | dask.array.Array | NDArray:
     """Return Heterogeneity Index computed from un-normalized components.
 
     Parameters

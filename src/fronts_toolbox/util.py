@@ -332,6 +332,10 @@ reordering will be made between the two dimensions. If the `window_size` argumen
 given as a mapping, its keys are used instead. If not specified, is taken by module-wide
 variable :data:`DEFAULT_DIMS` which defaults to ``{'lat', 'lon'}``."""
 """Help string for the recurring 'dims' argument."""
+ufunc_kwargs_help = """\
+See available kwargs for universal functions at
+:external+numpy:ref:`c-api.generalized-ufuncs`."""
+"""Help string for the recurring 'kwargs' argument for ufuncs."""
 
 
 def doc(

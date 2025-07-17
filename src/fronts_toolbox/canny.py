@@ -14,8 +14,8 @@ from skimage.util.dtype import dtype_limits
 from fronts_toolbox.util import Dispatcher, apply_vectorized, axes_help, dims_help, doc
 
 if TYPE_CHECKING:
-    from dask.array import Array as DaskArray
-    from xarray import DataArray
+    import dask.array
+    import xarray
 
 _Size = TypeVar("_Size", bound=tuple[int, ...])
 
@@ -158,15 +158,15 @@ def canny_numpy(
     )
 
 
-@doc(_doc, input_field_type="dask.array.Array", rtype="dask.array.Array")
+@doc(_doc)
 def canny_dask(
-    input_field: DaskArray,
+    input_field: dask.array.Array,
     hysteresis: bool = True,
     low_threshold: float | None = None,
     high_threshold: float | None = None,
     use_quantiles: bool = False,
     axes: Sequence[int] | None = None,
-) -> DaskArray:
+) -> dask.array.Array:
     """Apply Canny Edge Detector."""
     import dask.array as da
 
@@ -205,21 +205,15 @@ def canny_dask(
 canny_dispatcher = Dispatcher("canny", numpy=canny_numpy, dask=canny_dask)
 
 
-@doc(
-    _doc,
-    remove=["axes"],
-    input_field_type="xarray.DataArray",
-    rtype="xarray.DataArray",
-    dims=dims_help,
-)
+@doc(_doc, remove=["axes"], dims=dims_help)
 def canny_xarray(
-    input_field: DataArray,
+    input_field: xarray.DataArray,
     hysteresis: bool = True,
     low_threshold: float | None = None,
     high_threshold: float | None = None,
     use_quantiles: bool = False,
     dims: Collection[Hashable] | None = None,
-) -> DataArray:
+) -> xarray.DataArray:
     """Apply Canny Edge Detector."""
     import xarray as xr
 

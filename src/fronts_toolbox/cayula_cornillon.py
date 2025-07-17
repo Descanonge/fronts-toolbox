@@ -122,9 +122,9 @@ def cayula_cornillon_numpy(
     )
 
 
-@doc(_doc, input_field_type="dask.array.Array", rtype="dask.array.Array")
+@doc(_doc)
 def cayula_cornillon_dask(
-    input_field: DaskArray,
+    input_field: dask.array.Array,
     window_size: int | Sequence[int] = 32,
     window_step: int | Sequence[int] | None = None,
     bins_width: float = 0.1,
@@ -133,7 +133,7 @@ def cayula_cornillon_dask(
     axes: Sequence[int] | None = None,
     gufunc: Mapping[str, Any] | None = None,
     **kwargs,
-) -> DaskArray:
+) -> dask.array.Array:
     """Apply Cayula-Cornillon algorithm."""
     import dask.array as da
 
@@ -184,8 +184,6 @@ cayula_cornillon_dispatcher = Dispatcher(
 @doc(
     _doc,
     remove=["axes"],
-    input_field_type="xarray.DataArray",
-    rtype="xarray.DataArray",
     window_size="""\
     Total size of the moving window, in pixels. If a single integer, the size is taken
     identical for both axis. Otherwise it can be a mapping of the dimensions names to
@@ -205,7 +203,7 @@ cayula_cornillon_dispatcher = Dispatcher(
     dims=dims_help,
 )
 def cayula_cornillon_xarray(
-    input_field: DataArray,
+    input_field: xarray.DataArray,
     window_size: int | Mapping[Hashable, int] = 32,
     window_step: int | Mapping[Hashable, int] | None = None,
     bins_width: float = 0.1,
@@ -213,7 +211,7 @@ def cayula_cornillon_xarray(
     bimodal_criteria: float = 0.7,
     dims: Collection[Hashable] | None = None,
     gufunc: Mapping[str, Any] | None = None,
-) -> DataArray:
+) -> xarray.DataArray:
     """Apply Cayula-Cornillon algorithm."""
     import xarray as xr
 
@@ -329,7 +327,7 @@ def get_threshold(
     hist, bins = np.histogram(values, bins=n_bins, range=(vmin, vmax))
 
     # optimal (maximum) ratio of variance caused by separation in two clusters
-    ratio_opt = -99999
+    ratio_opt = -99999.0
     threshold_opt = 0
     std_tot = np.std(values)
 
