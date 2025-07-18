@@ -119,7 +119,7 @@ _doc = dict(
 
         Omits the gaussian filter.
     """,
-    input_field="Array fo the input field.",
+    input_field="Array of the input field.",
     hysteresis="""\
     If True (default), apply double-thresholding/hysteresis: weak edges are kept only if
     they are connected to a strong edge. If not, return both weak and strong edges.""",

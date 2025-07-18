@@ -49,6 +49,7 @@ source of confusion. Use an int or mapping instead.
 
    contextual-median
 
+   median
 
 .. toctree::
    :caption: Post-processing

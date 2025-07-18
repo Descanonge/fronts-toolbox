@@ -34,6 +34,8 @@ successfully.
 
    contextual-median
 
+   median
+
 
 .. toctree::
    :caption: Post-processing
