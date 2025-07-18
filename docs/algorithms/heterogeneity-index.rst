@@ -41,14 +41,13 @@ Components
     values to construct an histogram), the CCA method might be difficult to
     apply. We instead do the following:
 
-    - Construct an histogram (`h`) of the input field values.
-        For SST we use bins of width 0.1°C (by default).
+    - Construct an histogram (`h`) of the input field values. By default we use
+      bins of width 0.1°C.
     - We compare that histogram to a gaussian distribution of the same
-        characteristics as the input field distribution
-        (ie :math:`g_k = \frac{1}{\sqrt{2\pi σ}}
-        \exp\left(\frac{-(x_k-\bar{x})^2}{2σ^2}\right)`)
+      characteristics as the input field distribution (ie :math:`g_k =
+      1/\sqrt{2\pi σ} \exp\left(-(x_k-\bar{x})^2 / 2σ^2\right)`)
     - The comparison is done with the L2 norm (sum of the squared differences):
-        :math:`B = \sum_k (h_k - g_k)^2`.
+      :math:`B = \sum_k (h_k - g_k)^2`.
 
 
 Normalizing coefficients
@@ -57,14 +56,14 @@ Normalizing coefficients
 To compute the HI proper, we normalize each component by a coefficient so that
 they all have equivalent statistical weights. To that end, the coefficient is
 taken as the inverse of the components standard deviation over the available
-data. In other words, in normalize each component by its variance.
+data. In other words, we normalize each component by its variance.
 
 - :math:`\tilde{σ} = aσ`, with :math:`a = 1 / \operatorname{std}(σ)`
 - :math:`\tilde{γ} = bγ`, with :math:`b = 1 / \operatorname{std}(γ)`
 - :math:`\tilde{B} = cB`, with :math:`c = 1 / \operatorname{std}(B)`
 
 Finally, to bound somewhat the range of HI values, we apply a final coefficient
-*d* so that 95% of the HI values are inferior to *9.5*. We obtain thus:
+*d* so that 95% of the HI values are inferior to *9.5*:
 
 .. math::
 
@@ -76,17 +75,18 @@ Finally, to bound somewhat the range of HI values, we apply a final coefficient
 Linear packing and shifting histogram bins
 ==========================================
 
-For some datasets, the SST might be stored compressed by linear-packing.
+For some datasets, the SST might be stored compressed with linear-packing.
 
 .. note::
 
    Very simply, instead of storing a variable in a 32 bits float, because we
    know the range of that variable (let's say the values lie between 0 and 100),
    we store it on a smaller variable such as a 16 bits integer (SHORT) or even 8
-   bits integer (BYTE). The integer values (let's simplify and take an UNSIGNED
-   integer that can only be positive) lie between 0 and 2^16-1 ≈ 65 535 for a
-   USHORT. By multiplying those integer values by some factor we can obtain the
-   range we want for our variable, here that could be 0.00153.
+   bits integer (BYTE). Let's simplify and take an unsigned type. The integer
+   values will lie between 0 and :math:`2^{16}-1 \approx 65 535` for a USHORT.
+   By multiplying those integer values by some factor we can obtain the range we
+   want for our variable. Here a factor of 0.00153 will give a maximum value
+   slightly above 100.
 
    We end up with float values between 0 and 100 and a discretization interval
    equal to the scale factor (here 0.00153).

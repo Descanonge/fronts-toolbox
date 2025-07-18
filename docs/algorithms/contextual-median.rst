@@ -10,13 +10,11 @@ Definition
 ==========
 
 This is a median filter that is only applied if the central pixel of the window
-is a maximum or minimum over the moving window.
-The moving window size is 3x3 by default.
+is a maximum or minimum over the moving window. The moving window size is 3x3 by
+default.
 
 Functions
 =========
-
-Apply the BOA filter:
 
 - :func:`~.filters.contextual_median.cmf_numpy`
 - :func:`~.filters.contextual_median.cmf_dask`

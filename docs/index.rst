@@ -10,10 +10,10 @@ Fronts-Toolbox documentation
 
 Despite being widely used in the literature, some front-detection algorithms are
 not easily available in Python. This packages implements different methods
-directly in Python: there are accelerated by `Numba
-<https://numba.pydata.org/>`__ accelerated functions that can be applied easily
-to Numpy arrays, `Dask <https://dask.org/>`__ arrays, or `Xarray
-<https://xarray.dev/>`__ data. It could also support Cuda arrays if necessary.
+directly in Python: they are accelerated by `Numba
+<https://numba.pydata.org/>`__ and support Numpy arrays, `Dask
+<https://dask.org/>`__ arrays, or `Xarray <https://xarray.dev/>`__ data. Support
+for Cuda array could be added if necessary.
 
 The goal of this package is to provide various methods in such a way that they
 can be easily read and modified by researchers. In that regard, Numba allows to
@@ -21,7 +21,7 @@ write directly in Python and retain access to a lot of function from Numpy and
 Scipy. This packages provides a common framework to easily add other algorithms,
 while benefiting from testing and documentation.
 
-.. grid:: 4
+.. grid:: 1 1 3 4
 
    .. grid-item-card:: Algorithms
       :link: algorithms

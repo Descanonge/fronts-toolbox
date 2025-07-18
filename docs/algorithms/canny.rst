@@ -37,10 +37,10 @@ Potential edges are then thinned to 1-pixel width. This is done by finding the
 normal to the edge at each point by looking at the x and y components of the
 gradient. The edge can be horizontal, vertical, diagonal, or anti-diagonal.
 
-The central pixel is **not** kept as an edge if the magnitude in the normal or
-reverse directions are greater than its own. The magnitude in that direction is
-computed by interpolating the values from a selection of the 8 closest
-neighbors.
+The central pixel is **not** kept if the gradient at neighboring pixels in the
+normal or reverse directions is greater than its own. The gradient in those
+directions is computed by interpolating the values from a selection of the 8
+closest neighbors.
 
 See the implementation at
 https://github.com/scikit-image/scikit-image/blob/main/skimage/feature/_canny_cy.pyx.
@@ -60,14 +60,14 @@ two thresholds given by the user.
    image gradient magnitude.
 
 Strong edges are all kept. Weak edges are kept only if the are recursively
-8-connected to a strong edge. Meaning any weak edge that have a strong edge in
-at least one of its 8 closest neighbor is kept and now-considered as a strong
-edge (so weak edges connected to it will be kept as well).
+8-connected to a strong edge. Meaning any weak edge that has a strong edge in at
+least one of its 8 closest neighbors is kept and now-considered as a strong edge
+(so weak edges connected to it will be kept as well etc.).
 
 This step may make sense in the context of image processing, but not so much
-when detecting oceanic fronts. For that reason, it is possible to omit that
-step by passing ``hysteresis=False``. In this case, both weak and strong edges
-are returned.
+when detecting oceanic fronts. For that reason, it is possible to omit that step
+by passing ``hysteresis=False``. In this case, both weak and strong edges are
+kept.
 
 .. important::
 

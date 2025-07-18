@@ -18,18 +18,16 @@ Definition
 
 The BOA is a 3x3 median filter that is applied only if:
 
-- the central pixel is **not** a 5-peak
-- the central pixel is a 3-peak
+- the central pixel is not a 5-peak
+- and the central pixel is a 3-peak
 
-The central pixel is a 5-peak if its value is a maximum or minimum along all
-four 5 points 1D slices of a surrounding 5x5 window (east-west, north-south,
+The central pixel is a 5-peak if its value is a maximum or minimum along four
+5-points 1D slices of the surrounding 5x5 window (east-west, north-south,
 diagonals). The central pixel is a 3-peak if its value is a maximum or minimum
-in a surrounding 3x3 window.
+in the surrounding 3x3 window.
 
 Functions
 =========
-
-Apply the BOA filter:
 
 - :func:`~.filters.boa.boa_numpy`
 - :func:`~.filters.boa.boa_dask`

@@ -18,14 +18,19 @@ Histogram analysis
 ------------------
 
 The algorithm first does an histogram analysis inside the moving window to
-measure bimodality and find a threshold temperature between two water masses.
+measure bimodality and find a threshold temperature that separates two clusters
+of values, hopefully corresponding to cold and hot water masses.
 
 The histogram of valid values inside the window is computed. The width of the
 bins can be adjusted (default is 0.1°C wide).
-Some data can be compressed with linear packing. This means it is discretized
-which can cause numerical noise in the histogram. In that case it is useful to
-shift the bins by half the discretization step. See :ref:`bins-shift` and the
-Xarray function documentation (:func:`.cayula_cornillon_xarray`) for details.
+
+.. note::
+
+    Some data can be compressed with linear packing. This means it is
+    discretized which can cause numerical noise in the histogram. In that case
+    it is useful to shift the bins by half the discretization step. See
+    :ref:`bins-shift` and the :func:`Xarray function <.cayula_cornillon_xarray>`
+    documentation for details.
 
 For each possible threshold value, the bimodality is estimated by looking at
 intra-cluster and inter-cluster variance. For a threshold :math:`\tau`, we
@@ -43,8 +48,8 @@ compute the number of values in each cluster and their average value:
     \mu_2 = \sum_{t>\tau} th(t) / N_2
     \end{cases}
 
-We can then compute the contribution to variance resulting from the separation
-into two cluster (inter-cluster variance):
+We can then compute the variance resulting from the separation into two cluster
+(inter-cluster variance):
 
 .. math::
 
@@ -53,7 +58,7 @@ into two cluster (inter-cluster variance):
 The separation temperature :math:`\tau_{\text{opt}}` is taken as the one that
 maximizes the inter-cluster variance contribution to the total variance
 :math:`\sigma`. The distribution is considered bimodal if the ratio :math:`J_b /
-\sigma` exceeds a fixed criteria. By default, the criteria threshold is 0.7, as
+\sigma` exceeds a fixed criteria. By default, that criteria is 0.7, as
 recommended by the article. See |cayula_1992|_ for more details on that choice.
 
 
@@ -61,15 +66,14 @@ Cohesion check
 --------------
 
 So far, the algorithm only looks at the distribution of values. This
-distribution can be bimodal even though there are not two spatially coherent
-water masses in the window. Bimodality could be the result of patchiness
-resulting from clouds, land, or noise.
-The two clusters are tested for spatial coherence.
+distribution can be bimodal even if the two clusters are not spatially coherent
+water masses. Bimodality could be the result of patchiness because of clouds,
+land, or noise. Hence the two clusters are tested for spatial coherence.
 
 In the window, we count the total numbers :math:`T_1` and :math:`T_2` of valid
 neighbors for each cluster (cold and warm respectively). We also count the
 numbers :math:`R_1` and :math:`R_2` of neighbors that are of the same cluster.
-We only consider the four first neighbors.
+We only consider the four closest neighbors.
 
 The clusters are considered spatially coherent (and the fronts inside this
 window kept) if the following criteria are met:
@@ -85,7 +89,7 @@ Edges
 
 If the distribution is bimodal, edges given by the separation temperature
 :math:`\tau_{\text{opt}}` are found. We select pixels inside the moving window
-that have at least one first-neighbor on the opposite side of the threshold.
+that have at least one adjacent pixel on the opposite side of the threshold.
 
 This gives fronts that are one-pixel wide. However, if the moving-window is
 shifted in increments smaller than its size, there can be overlap in edges found
@@ -100,18 +104,17 @@ can thus exceed one, and fronts can be wider than one pixel.
 Dask support
 ============
 
-When there is no overlap between shifts of the moving window, *ie* when the
-``window_step`` is equal to the ``window_size``, the result is potentially
-sensitive to the absolute placement of the window. When having a Dask array
-chunked along the core dimensions (latitude and/or longitude), there is no
-guarantee that the window placement will be the same as if the image was
-a single chunk.
+By default there is no overlap between two subsequent window and the result the
+result is potentially sensitive to the absolute placement of the window. When
+having a Dask array chunked along the core dimensions (latitude and/or
+longitude), there is no guarantee that the window placement will be the same as
+if the image was a single chunk.
 
 In the example below, the chunk size is slightly too small. The window placement
 in the second block will not be the same as if the image was not chunked (the
 dashed red lines).
 
-.. image:: cayula_cornillon_blocks.svg
+.. image:: /_static/cayula_cornillon_blocks.svg
 
 Because of this, if the core dimensions are chunked, the function will only
 accept input arrays where the block size is a multiple of the window *step* (

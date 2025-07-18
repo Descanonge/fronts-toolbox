@@ -7,7 +7,7 @@ Here are some pointers and requirements to add new methods to this package.
 Don't hesitate to look at existing algorithms, or to open an issue if you are
 having troubles.
 
-Front-detection algorithm can be defined in their own module.
+Front-detection algorithms can be defined in their own module.
 Filters are to be defined in the :mod:`.filters` module.
 Post-processing of detected fronts are to be defined in the :mod:`.post` module.
 
@@ -25,7 +25,8 @@ This library aims to facilitate implementing different types of input arrays:
 - Numpy,
 - Dask,
 - Xarray,
-- CUDA is not supported, but it could be added without too much hassle.
+- CUDA/Cupy arrays are not supported, but it could be added without too much
+  hassle.
 
 Beyond numpy and numba, none of those libraries are required. As much
 functionality as possible should be made available even if optional dependencies
