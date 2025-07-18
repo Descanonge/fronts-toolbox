@@ -147,7 +147,7 @@ def cmf_dask(
             boundary="none",
             # output
             dtype=input_field.dtype,
-            meta=np.array((), dtype=input_field.dtype, **kwargs),
+            meta=np.array((), dtype=input_field.dtype),
             name=func.__name__,
             # kwargs
             window_reach=reach,
