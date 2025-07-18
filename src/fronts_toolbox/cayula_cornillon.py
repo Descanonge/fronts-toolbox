@@ -22,6 +22,7 @@ from fronts_toolbox.util import (
     doc,
     get_axes_kwarg,
     get_dims_and_window_size,
+    get_kwargs_wrap,
     guvectorize_lazy,
 )
 
@@ -158,18 +159,19 @@ def cayula_cornillon_dask(
         )
 
     output = da.map_blocks(
-        func,
+        get_kwargs_wrap(func),
         input_field,
         # output
         dtype=np.int64,
         meta=np.array((), dtype=np.int64),
+        name=func.__name__,
         # kwargs for function
         window_size=window_size,
         window_step=window_step,
         bins_width=bins_width,
         bins_shift=bins_shift,
         bimodal_criteria=bimodal_criteria,
-        **kwargs,
+        kwargs=kwargs,
     )
 
     return output

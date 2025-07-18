@@ -104,6 +104,15 @@ def apply_vectorized(
     return output
 
 
+def get_kwargs_wrap(func: Callable) -> Callable:
+    """Return a thin wrapper that transform kwargs into positional args."""
+
+    def wrap(input_field, kwargs: Mapping, **args):
+        return func(input_field, *args.values(), **kwargs)
+
+    return wrap
+
+
 def get_axes_kwarg(
     signature: str, axes: Sequence[int], order: str = "y,x"
 ) -> list[tuple[int, ...]]:

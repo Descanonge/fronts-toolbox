@@ -16,7 +16,12 @@ import numba.types as nt
 import numpy as np
 from numba import prange
 
-from fronts_toolbox.util import Dispatcher, get_axes_kwarg, guvectorize_lazy
+from fronts_toolbox.util import (
+    Dispatcher,
+    get_axes_kwarg,
+    get_kwargs_wrap,
+    guvectorize_lazy,
+)
 
 from .boa import is_max_at, is_min_at
 
@@ -135,7 +140,7 @@ def cmf_dask(
     output = input_field
     for _ in range(iterations):
         output = da.map_overlap(
-            func,
+            get_kwargs_wrap(func),
             output,
             # overlap
             depth=depth,
@@ -143,9 +148,10 @@ def cmf_dask(
             # output
             dtype=input_field.dtype,
             meta=np.array((), dtype=input_field.dtype, **kwargs),
+            name=func.__name__,
             # kwargs
             window_reach=reach,
-            **kwargs,
+            kwargs=kwargs,
         )
 
     return output
