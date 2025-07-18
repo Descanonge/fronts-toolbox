@@ -160,17 +160,17 @@ def components_dask(
     func = components_core(gufunc)
     output = da.map_blocks(
         func,
-        # arguments to the function
         overlap,
-        list(range(3)),  # dummy argument of size 3
-        (window_reach_x, window_reach_y),
-        bins_width,
-        bins_shift,
-        **kwargs,
         # output
         new_axis=ndim,
         meta=np.array((), dtype=input_field.dtype),
         chunks=tuple([*overlap.chunks, 3]),
+        # arguments to the function
+        dummy=list(range(3)),  # dummy argument of size 3
+        window_reach=(window_reach_x, window_reach_y),
+        bins_width=bins_width,
+        bins_shift=bins_shift,
+        **kwargs,
     )
     output = da.overlap.trim_internal(output, depth)
 

@@ -61,7 +61,7 @@ def boa_numpy(
     if axes is not None:
         kwargs["axes"] = get_axes_kwarg(func.signature, axes)
 
-    output = input_field
+    output = input_field.copy()
     for _ in range(iterations):
         output = func(output, **kwargs)
 
@@ -79,21 +79,26 @@ def boa_dask(
     """Apply BOA filter."""
     import dask.array as da
 
+    func = boa_core(gufunc)
+
     if axes is None:
         axes = [-2, -1]
     axes = [range(input_field.ndim)[i] for i in axes]
+    kwargs["axes"] = get_axes_kwarg(func.signature, axes)
 
-    output = da.map_overlap(
-        boa_numpy,
-        input_field,
-        # overlap
-        depth={axes[0]: 2, axes[1]: 2},
-        boundary="none",
-        # output
-        dtype=input_field.dtype,
-        meta=np.array((), dtype=input_field.dtype),
-        **kwargs,
-    )
+    output = input_field.copy()
+    for _ in range(iterations):
+        output = da.map_overlap(
+            func,
+            output,
+            # overlap
+            depth={axes[0]: 2, axes[1]: 2},
+            boundary="none",
+            # output
+            dtype=input_field.dtype,
+            meta=np.array((), dtype=input_field.dtype),
+            **kwargs,
+        )
 
     return output
 

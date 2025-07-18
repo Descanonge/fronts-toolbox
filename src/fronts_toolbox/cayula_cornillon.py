@@ -142,9 +142,11 @@ def cayula_cornillon_dask(
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
 
+    func = cayula_cornillon_core(gufunc)
+
     if axes is None:
         axes = [-2, -1]
-    axes = [range(input_field.ndim)[i] for i in axes]
+    kwargs["axes"] = get_axes_kwarg(func.signature, axes)
 
     if any(
         input_field.chunksize[i] != input_field.shape[i]
@@ -156,7 +158,7 @@ def cayula_cornillon_dask(
         )
 
     output = da.map_blocks(
-        cayula_cornillon_numpy,
+        func,
         input_field,
         # output
         dtype=np.int64,
@@ -167,7 +169,6 @@ def cayula_cornillon_dask(
         bins_width=bins_width,
         bins_shift=bins_shift,
         bimodal_criteria=bimodal_criteria,
-        axes=axes,
         **kwargs,
     )
 

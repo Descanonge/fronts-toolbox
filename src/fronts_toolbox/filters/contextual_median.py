@@ -123,19 +123,30 @@ def cmf_dask(
         raise ValueError("Window size should be odd.")
     reach = int(np.floor(size / 2))
 
-    ndim = input_field.ndim
-    depth = {ndim - 2: 1, ndim - 1: 1}
-
     func = cmf_core(gufunc)
 
-    if axes is not None:
-        kwargs["axes"] = get_axes_kwarg(func.signature, axes, "y,x")
+    if axes is None:
+        axes = [-2, -1]
+    axes = [range(input_field.ndim)[i] for i in axes]
+    kwargs["axes"] = get_axes_kwarg(func.signature, axes, "y,x")
+
+    depth = {axes[0]: reach, axes[1]: reach}
 
     output = input_field
     for _ in range(iterations):
-        overlap = da.overlap.overlap(output, depth=depth, boundary="none")
-        output = da.map_blocks(func, overlap, reach, **kwargs)
-        output = da.overlap.trim_internal(output, depth)
+        output = da.map_overlap(
+            func,
+            output,
+            # overlap
+            depth=depth,
+            boundary="none",
+            # output
+            dtype=input_field.dtype,
+            meta=np.array((), dtype=input_field.dtype, **kwargs),
+            # kwargs
+            window_reach=reach,
+            **kwargs,
+        )
 
     return output
 
