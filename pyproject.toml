@@ -58,6 +58,8 @@ tests = [
 [project.urls]
 'Homepage' = 'https://github.com/Descanonge/fronts-toolbox'
 
+[tool.setuptools_scm]
+
 [tool.mypy]
 ignore_missing_imports = true
 exclude = ['^docs/extensions', '^tests']
