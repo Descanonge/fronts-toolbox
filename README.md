@@ -1,6 +1,14 @@
 # Fronts toolbox
 
-Collection of tools to detect oceanic fronts in Python.
+> Collection of tools to detect oceanic fronts in Python.
+
+<div align="left">
+
+[![GitHub release](https://img.shields.io/github/v/release/Descanonge/fronts-toolbox)](https://github.com/Descanonge/fronts-toolbox/releases)
+[![test status](https://github.com/Descanonge/fronts-toolbox/actions/workflows/tests.yml/badge.svg)](https://github.com/Descanonge/fronts-toolbox/actions)
+[![Documentation Status](https://readthedocs.org/projects/fronts-toolbox/badge/?version=latest)](https://fronts-toolbox.readthedocs.io/en/latest/?badge=latest)
+
+</div>
 
 Despite being widely used in the literature, some front-detection algorithms are not easily available in Python.
 This packages implements different methods directly in Python: there are accelerated by [Numba](https://numba.pydata.org/) and available for Numpy arrays, [Dask](https://dask.org/) arrays, or [Xarray](https://xarray.dev/) data.
