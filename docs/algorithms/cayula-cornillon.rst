@@ -142,6 +142,28 @@ Supported types and requirements
 - numpy
 - numba
 
+Other implementations
+=====================
+
++----------+--------------------+----------------------------------------------+
+|          |      Language      | Notes                                        |
++----------+--------------------+----------------------------------------------+
+| MGET_    | C                  | Toolbox for ArcGIS. It seems the plugins only|
+|          |                    | ships the compiled code.                     |
+|          |                    | It has not yet been ported for the new       |
+|          |                    | version, whose code is available publicly at |
+|          |                    | https://github.com/jjrob/MGET.               |
++----------+--------------------+----------------------------------------------+
+| C_       | C                  |                                              |
++----------+--------------------+----------------------------------------------+
+| JUNO_    | Pure Python        | This is pure Python and may be slow          |
+|          | (Xarray, Pandas)   |                                              |
++----------+--------------------+----------------------------------------------+
+
+.. _MGET: https://mgel.env.duke.edu/mget/
+.. _C: https://github.com/chrisberglund/front_detection
+.. _JUNO: https://github.com/CoLAB-ATLANTIC/JUNO
+
 
 References
 ==========

@@ -6,13 +6,6 @@ Belkin-O'Reilly Algorithm
 A contextual median filter that avoids smoothing fine structures. Based on
 |belkin_2009|_.
 
-.. important::
-
-   Despite following the article and the public `R implementation
-   <https://rdrr.io/github/galuardi/boaR/man/boaR-package.html>`__, I am unable
-   to reproduce the figures of the article or obtain any kind of satisfactory
-   results.
-
 Definition
 ==========
 
@@ -25,6 +18,12 @@ The central pixel is a 5-peak if its value is a maximum or minimum along four
 5-points 1D slices of the surrounding 5x5 window (east-west, north-south,
 diagonals). The central pixel is a 3-peak if its value is a maximum or minimum
 in the surrounding 3x3 window.
+
+.. note::
+
+    Despite what could be understood from the figure 8 of |belkin_2009|_, the
+    algorithm does not filter out lonely, aberrant pixels. If your data has such
+    kind of noise, consider the :doc:`contextual-median`.
 
 Functions
 =========
@@ -43,6 +42,30 @@ Supported types and requirements
 
 - numpy
 - numba
+
+Other implementations
+=====================
+
++----------+--------------------+-----------------------------------------+
+|          |      Language      | Notes                                   |
++----------+--------------------+-----------------------------------------+
+| boar_    | Pure Python        |                                         |
++----------+--------------------+-----------------------------------------+
+| pyBOA_   | Pure Python        | This is pure Python but is written in a |
+|          | (Xarray)           | a way that should prove efficient       |
+|          |                    |                                         |
++----------+--------------------+-----------------------------------------+
+| JUNO_    | Pure Python        | This is pure Python and may be slow     |
+|          | (Xarray, Pandas)   |                                         |
++----------+--------------------+-----------------------------------------+
+| boac_    | C                  |                                         |
++----------+--------------------+-----------------------------------------+
+
+.. _boar: https://rdrr.io/github/galuardi/boaR/man/boaR-package.html
+.. _pyBOA: https://github.com/AlxLhrNc/pyBOA/
+.. _JUNO: https://github.com/CoLAB-ATLANTIC/JUNO
+.. _boac: https://github.com/chrisberglund/boac
+
 
 References
 ==========
