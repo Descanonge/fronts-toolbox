@@ -24,6 +24,9 @@ Documentation available at https://fronts-toolbox.readthedocs.io, with descripti
 
 Soon on PyPI. For now install from source:
 ``` shell
+git clone https://github.com/Descanonge/fronts-toolbox.git
+cd fronts-toolbox
+pip install -e .
 ```
 
 ## Functions available
