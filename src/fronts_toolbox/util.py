@@ -104,6 +104,22 @@ def apply_vectorized(
     return output
 
 
+class KwargsWrap:
+    """A thin wrapper that transform kwargs into positional args."""
+
+    def __init__(self, func: Callable, arg_names: Sequence[str]):
+        self.func = func
+        self.arg_names = arg_names
+        self.name = func.__name__
+
+    def __call__(self, *args, **kwargs):
+        call = list(args)
+        for name in self.arg_names:
+            call.append(kwargs.pop(name))
+
+        return self.func(*call, **kwargs)
+
+
 def get_kwargs_wrap(func: Callable) -> Callable:
     """Return a thin wrapper that transform kwargs into positional args."""
 

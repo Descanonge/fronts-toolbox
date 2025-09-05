@@ -29,19 +29,18 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import numba.types as nt
 import numpy as np
-from numba import jit, prange
+from numba import guvectorize, jit, prange
 from numpy.typing import NDArray
 
 from fronts_toolbox.util import (
     Dispatcher,
+    KwargsWrap,
     axes_help,
     detect_bins_shift,
     dims_help,
     doc,
     get_dims_and_window_size,
-    get_kwargs_wrap,
     get_window_reach,
-    guvectorize_lazy,
     is_dataarray,
     is_dataset,
     ufunc_kwargs_help,
@@ -158,21 +157,23 @@ def components_dask(
     depth = {axes[0]: window_reach_y, axes[1]: window_reach_x}
     overlap = da.overlap.overlap(input_field, depth=depth, boundary="none")
 
-    func = components_core(gufunc)
+    wrap = KwargsWrap(
+        components_core, ["dummy", "window_reach", "bins_width", "bins_shift"]
+    )
     output = da.map_blocks(
-        get_kwargs_wrap(func),
+        wrap,
         overlap,
         # output
         new_axis=ndim,
         meta=np.array((), dtype=input_field.dtype),
         chunks=tuple([*overlap.chunks, 3]),
-        name=func.__name__,
+        name=wrap.name,
         # arguments to the function
         dummy=list(range(3)),  # dummy argument of size 3
         window_reach=(window_reach_x, window_reach_y),
         bins_width=bins_width,
         bins_shift=bins_shift,
-        kwargs=kwargs,
+        **kwargs,
     )
     output = da.overlap.trim_internal(output, depth)
 
@@ -366,7 +367,7 @@ def get_components_from_values(
     return np.asarray([stdev, skewness, bimod], dtype=values.dtype)
 
 
-@guvectorize_lazy(
+@guvectorize(
     [
         (
             nt.float32[:, :],
@@ -388,7 +389,7 @@ def get_components_from_values(
     "(y,x),(c),(w),(),()->(y,x,c)",
     nopython=True,
     cache=True,
-    target="parallel",
+    target="cpu",
 )
 def components_core(
     input_image: np.ndarray[tuple[int, int], _DT],
