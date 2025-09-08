@@ -9,18 +9,21 @@ smoothing out the rest of the signal too much.
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection, Hashable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, TypeVar
+from collections.abc import Collection, Hashable, Sequence
+from typing import TYPE_CHECKING, TypeVar
 
 import numba.types as nt
 import numpy as np
-from numba import prange
+from numba import guvectorize, prange
 
 from fronts_toolbox.util import (
     Dispatcher,
+    KwargsWrap,
+    axes_help,
+    dims_help,
+    doc,
     get_axes_kwarg,
-    get_kwargs_wrap,
-    guvectorize_lazy,
+    ufunc_kwargs_help,
 )
 
 from .boa import is_max_at, is_min_at
@@ -36,111 +39,72 @@ DEFAULT_DIMS: list[Hashable] = ["lat", "lon"]
 logger = logging.getLogger(__name__)
 
 
-def cmf_numpy(
-    input_field: NDArray,
-    size: int = 3,
-    iterations: int = 1,
-    axes: Sequence[int] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
-    **kwargs,
-) -> NDArray:
-    """Apply contextual median filter.
-
+_doc = dict(
+    init="""\
     This is a basic median filter where the filter is applied if and only if the central
     pixel of the moving window is a peak/maximum or a trough/minimum over the whole
     window. This is aimed at filtering anomalous values in the form of lonely spikes,
-    without smoothing out the rest of the signal too much.
-
-    Parameters
-    ----------
-    input_field:
-        Input array to filter.
-    size:
-        Size of the moving window. Default is 3 (ie 3x3).
-    iterations:
-        Numbers of times to apply the filter.
-    axes:
-        Indices of the the y/lat and x/lon axes on which to work. If None (default), the
-        last two axes are used.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-    kwargs:
-        See available kwargs for universal functions at
-        :external+numpy:ref:`c-api.generalized-ufuncs`.
+    without smoothing out the rest of the signal too much.""",
+    input_field="Array to filter.",
+    window_size="Size of the moving window. Default is 3 (*ie* 3x3).",
+    iterations="Number of times to apply the filter.",
+    axes=axes_help,
+    kwargs=ufunc_kwargs_help,
+    returns="Filtered array.",
+)
 
 
-    :returns: Filtered array.
-    """
-    if (size % 2) == 0:
+@doc(_doc)
+def cmf_numpy(
+    input_field: NDArray,
+    window_size: int = 3,
+    iterations: int = 1,
+    axes: Sequence[int] | None = None,
+    **kwargs,
+) -> NDArray:
+    """Apply contextual median filter."""
+    if (window_size % 2) == 0:
         raise ValueError("Window size should be odd.")
-    reach = int(np.floor(size / 2))
-
-    func = cmf_core(gufunc)
+    reach = int(np.floor(window_size / 2))
 
     if axes is not None:
-        kwargs["axes"] = get_axes_kwarg(func.signature, axes, "y,x")
+        kwargs["axes"] = get_axes_kwarg(cmf_core.signature, axes, "y,x")
 
     output = input_field
     for _ in range(iterations):
-        output = func(output, reach, **kwargs)
+        output = cmf_core(output, reach, **kwargs)
 
     return output
 
 
+@doc(_doc)
 def cmf_dask(
     input_field: DaskArray,
-    size: int = 3,
+    window_size: int = 3,
     iterations: int = 1,
     axes: Sequence[int] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> DaskArray:
-    """Apply contextual median filter.
-
-    This is a basic median filter where the filter is applied if and only if the central
-    pixel of the moving window is a peak/maximum or a trough/minimum over the whole
-    window. This is aimed at filtering anomalous values in the form of lonely spikes,
-    without smoothing out the rest of the signal too much.
-
-    Parameters
-    ----------
-    input_field:
-        Input array to filter.
-    size:
-        Size of the moving window. Default is 3 (ie 3x3).
-    iterations:
-        Numbers of times to apply the filter.
-    axes:
-        Indices of the the y/lat and x/lon axes on which to work. If None (default), the
-        last two axes are used.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-    kwargs:
-        See available kwargs for universal functions at
-        :external+numpy:ref:`c-api.generalized-ufuncs`.
-
-
-    :returns: Filtered array.
-    """
+    """Apply contextual median filter."""
     import dask.array as da
 
-    if (size % 2) == 0:
+    if (window_size % 2) == 0:
         raise ValueError("Window size should be odd.")
-    reach = int(np.floor(size / 2))
-
-    func = cmf_core(gufunc)
+    reach = int(np.floor(window_size / 2))
 
     if axes is None:
         axes = [-2, -1]
     axes = [range(input_field.ndim)[i] for i in axes]
-    kwargs["axes"] = get_axes_kwarg(func.signature, axes, "y,x")
+    kwargs["axes"] = get_axes_kwarg(cmf_core.signature, axes, "y,x")
 
     depth = {axes[0]: reach, axes[1]: reach}
+
+    wrap = KwargsWrap(cmf_core, ["window_reach"])
 
     output = input_field
     for _ in range(iterations):
         output = da.map_overlap(
-            get_kwargs_wrap(func),
+            wrap,
             output,
             # overlap
             depth=depth,
@@ -148,10 +112,10 @@ def cmf_dask(
             # output
             dtype=input_field.dtype,
             meta=np.array((), dtype=input_field.dtype),
-            name=func.__name__,
+            name=wrap.name,
             # kwargs
             window_reach=reach,
-            kwargs=kwargs,
+            **kwargs,
         )
 
     return output
@@ -164,43 +128,17 @@ cmf_mapper = Dispatcher(
 )
 
 
+@doc(_doc, remove=["axes"], dims=dims_help)
 def cmf_xarray(
     input_field: DataArray,
-    size: int = 3,
+    window_size: int = 3,
     iterations: int = 1,
     dims: Collection[Hashable] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
 ) -> DataArray:
-    """Apply contextual median filter.
-
-    This is a basic median filter where the filter is applied if and only if the central
-    pixel of the moving window is a peak/maximum or a trough/minimum over the whole
-    window. This is aimed at filtering anomalous values in the form of lonely spikes,
-    without smoothing out the rest of the signal too much.
-
-    Parameters
-    ----------
-    input_field:
-        Input array to filter.
-    size:
-        Size of the moving window. Default is 3 (ie 3x3).
-    iterations:
-        Numbers of times to apply the filter.
-    dims:
-        Names of the dimensions along which to compute the index. Order is irrelevant,
-        no reordering will be made between the two dimensions.
-        If not specified, is taken by module-wide variable :data:`DEFAULT_DIMS`
-        which defaults to ``{'lat', 'lon'}``.
-    gufunc:
-        Arguments passed to :func:`numba.guvectorize`.
-
-
-    :returns: Filtered array.
-    :rtype: xarray.DataArray
-    """
+    """Apply contextual median filter."""
     import xarray as xr
 
-    if (size % 2) == 0:
+    if (window_size % 2) == 0:
         raise ValueError("Window size should be odd.")
 
     if dims is None:
@@ -211,17 +149,17 @@ def cmf_xarray(
 
     axes = sorted(input_field.get_axis_num(dims))
     func = cmf_mapper.get_func(input_field.data)
-    output = func(
-        input_field.data, size=size, iterations=iterations, axes=axes, gufunc=gufunc
-    )
+    output = func(input_field.data, size=window_size, iterations=iterations, axes=axes)
 
     arr = xr.DataArray(
         data=output,
         coords=input_field.coords,
         dims=input_field.dims,
-        name=f"{input_field.name}_CMF{size}",
+        name=f"{input_field.name}_CMF{window_size}",
         attrs=dict(
-            computed_from=input_field.name, iterations=iterations, window_size=size
+            computed_from=input_field.name,
+            iterations=iterations,
+            window_size=window_size,
         ),
     )
 
@@ -231,14 +169,14 @@ def cmf_xarray(
 _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
 
 
-@guvectorize_lazy(
+@guvectorize(
     [
         (nt.float32[:, :], nt.intp, nt.float32[:, :]),
         (nt.float64[:, :], nt.intp, nt.float64[:, :]),
     ],
     "(y,x),()->(y,x)",
     nopython=True,
-    target="parallel",
+    target="cpu",
     cache=True,
 )
 def cmf_core(

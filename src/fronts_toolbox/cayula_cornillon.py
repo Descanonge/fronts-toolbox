@@ -11,19 +11,18 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import numba.types as nt
 import numpy as np
-from numba import jit, prange
+from numba import guvectorize, jit, prange
 from numpy.typing import NDArray
 
 from fronts_toolbox.util import (
     Dispatcher,
+    KwargsWrap,
     axes_help,
     detect_bins_shift,
     dims_help,
     doc,
     get_axes_kwarg,
     get_dims_and_window_size,
-    get_kwargs_wrap,
-    guvectorize_lazy,
 )
 
 if TYPE_CHECKING:
@@ -65,7 +64,6 @@ _doc = dict(
     Criteria for determining if the distribution is bimodal or not. The default is 0.7,
     as choosen in Cayula & Cornillon (1992).""",
     axes=axes_help,
-    gufunc="Arguments passed to :func:`numba.guvectorize`.",
     kwargs="""\
     See available kwargs for universal functions at
     :external+numpy:ref:`c-api.generalized-ufuncs`.""",
@@ -98,7 +96,6 @@ def cayula_cornillon_numpy(
     bins_shift: float = 0.0,
     bimodal_criteria: float = 0.7,
     axes: Sequence[int] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> np.ndarray[_Size, np.dtype[np.int64]]:
     """Apply Cayula-Cornillon algorithm."""
@@ -107,12 +104,12 @@ def cayula_cornillon_numpy(
 
     window_size, window_step = _get_window_args(window_size, window_step)
 
-    func = cayula_cornillon_core(gufunc)
-
     if axes is not None:
-        kwargs["axes"] = get_axes_kwarg(func.signature, axes, order="y,x")
+        kwargs["axes"] = get_axes_kwarg(
+            cayula_cornillon_core.signature, axes, order="y,x"
+        )
 
-    return func(
+    return cayula_cornillon_core(
         input_field,
         window_size,
         window_step,
@@ -132,7 +129,6 @@ def cayula_cornillon_dask(
     bins_shift: float = 0.0,
     bimodal_criteria: float = 0.7,
     axes: Sequence[int] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> dask.array.Array:
     """Apply Cayula-Cornillon algorithm."""
@@ -143,11 +139,9 @@ def cayula_cornillon_dask(
     if bins_width == 0.0:
         raise ValueError("bins_width cannot be 0.")
 
-    func = cayula_cornillon_core(gufunc)
-
     if axes is None:
         axes = [-2, -1]
-    kwargs["axes"] = get_axes_kwarg(func.signature, axes)
+    kwargs["axes"] = get_axes_kwarg(cayula_cornillon_core.signature, axes)
 
     if any(
         input_field.chunksize[i] != input_field.shape[i]
@@ -158,20 +152,25 @@ def cayula_cornillon_dask(
             "Core dimension chunksize must be a multiple of the window step."
         )
 
+    wrap = KwargsWrap(
+        cayula_cornillon_core,
+        ["window_size", "window_step", "bins_width", "bins_shift", "bimodal_criteria"],
+    )
+
     output = da.map_blocks(
-        get_kwargs_wrap(func),
+        wrap,
         input_field,
         # output
         dtype=np.int64,
         meta=np.array((), dtype=np.int64),
-        name=func.__name__,
+        name=wrap.name,
         # kwargs for function
         window_size=window_size,
         window_step=window_step,
         bins_width=bins_width,
         bins_shift=bins_shift,
         bimodal_criteria=bimodal_criteria,
-        kwargs=kwargs,
+        **kwargs,
     )
 
     return output
@@ -213,7 +212,6 @@ def cayula_cornillon_xarray(
     bins_shift: float = 0.0,
     bimodal_criteria: float = 0.7,
     dims: Collection[Hashable] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
 ) -> xarray.DataArray:
     """Apply Cayula-Cornillon algorithm."""
     import xarray as xr
@@ -255,7 +253,6 @@ def cayula_cornillon_xarray(
         bins_shift=bins_shift,
         bimodal_criteria=bimodal_criteria,
         axes=axes,
-        gufunc=gufunc,
     )
 
     # Attribute common to all variable (and also global attributes)
@@ -509,7 +506,7 @@ def get_edges(
     return edges
 
 
-@guvectorize_lazy(
+@guvectorize(
     [
         (
             nt.float32[:, :],
@@ -532,6 +529,7 @@ def get_edges(
     ],
     "(y,x),(w),(w),(),(),()->(y,x)",
     nopython=True,
+    target="cpu",
     cache=True,
 )
 def cayula_cornillon_core(

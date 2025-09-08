@@ -163,36 +163,14 @@ conversion.
 
 Note that when using ``guvectorize`` with ``target="parallel"`` and
 ``cache=True`` the import is quite slow (see `issue #8085
-<https://github.com/numba/numba/issues/8085>`__). To avoid this, you can use
-:func:`.util.guvectorize_lazy`. This decorator takes all the arguments of
-``guvectorize``, and returns a function that, when called, will compile as
-usual. This defers the faulty cache retrieval until execution. It also lets the
-user change compilation arguments at runtime (to change the target for
-instance). Here is a small example::
+<https://github.com/numba/numba/issues/8085>`__).
+I tried to defer fetching the cache at call time, but this failed to be pickled
+correctly when using dask.distributed.
 
-    @guvectorize_lazy(
-        [
-            "signatures..."
-        ],
-        "(x,y)->(x,y)",
-        no_python=True,
-        cache=True,
-        target="parallel",
-    )
-    def _my_function(input_field, output):
-        output = 2*input_field
-
-    def my_algorithm_numpy(
-        input_field: NDArray, gufunc: Mapping | None = None, **kwargs
-    ) -> NDArray:
-        func = _my_function(gufunc)
-        return func(input_field, **kwargs)
-
-In the example above, calling ``my_algorithm_numpy`` will compile with, by
-default, options ``cache=True, target="parallel"``. Subsequent compilations will
-be retrieved from the cache at execution. The user can overwrite compilation
-options with ``my_algorithm_numpy(input, gufunc=dict(target="cpu"))`` for
-instance.
+Fonctions compiled with numba.guvectorize only accept positional arguments, but
+(as I understand it) Dask treats positional arguments as chunked data. Use this
+wrapper to transform kwargs into positional arguments: Dask will see keyword
+arguments, but the fonction will receive positional arguments.
 
 Moving window size
 ==================

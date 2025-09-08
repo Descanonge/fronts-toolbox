@@ -105,7 +105,23 @@ def apply_vectorized(
 
 
 class KwargsWrap:
-    """A thin wrapper that transform kwargs into positional args."""
+    """A thin wrapper that transform kwargs into positional args.
+
+    Fonctions compiled with numba.guvectorize only accept positional arguments, but (as
+    I understand it) Dask treats positional arguments as chunked data. Use this wrapper
+    to transform kwargs into positional arguments: Dask will see keyword arguments, but
+    the fonction will receive positional arguments.
+
+    The could be written as a simpler function, but it could not be pickled for
+    dask.distributed (the wrapper would be a locally defined function).
+
+    Parameters
+    ----------
+    func:
+        Compiled function.
+    arg_names:
+        List of the keyword arguments names, in order they should be passed to ``func``.
+    """
 
     def __init__(self, func: Callable, arg_names: Sequence[str]):
         self.func = func
@@ -118,15 +134,6 @@ class KwargsWrap:
             call.append(kwargs.pop(name))
 
         return self.func(*call, **kwargs)
-
-
-def get_kwargs_wrap(func: Callable) -> Callable:
-    """Return a thin wrapper that transform kwargs into positional args."""
-
-    def wrap(input_field, kwargs: Mapping, **args):
-        return func(input_field, *args.values(), **kwargs)
-
-    return wrap
 
 
 def get_axes_kwarg(
@@ -241,43 +248,6 @@ def is_daskarray(x: object) -> TypeIs[DaskArray]:
 
         return isinstance(x, da.Array)
     return False
-
-
-def guvectorize_lazy(*args, nopython: bool = True, cache: bool = True, **kwargs):
-    """Wrap around numba.guvectorize.
-
-    This returns a function that, when called, will compile the decorated function
-    with the kwargs passed to the decorator and the function (those from the function
-    take priority).
-    """
-
-    def decorator(func):
-        @wraps(func)
-        def generate_gufunc(lazy_kwargs: Mapping | None) -> Callable:
-            if lazy_kwargs is None:
-                lazy_kwargs = dict(nopython=nopython, cache=cache)
-            kw = dict(kwargs) | dict(lazy_kwargs)
-            return guvectorize(*args, **kw)(func)
-
-        doc = func.__doc__
-        if doc is None:
-            doc = ""
-        lines = doc.splitlines()
-        # watch out indent
-        wrap_doc = f"""{lines[0]}
-
-    .. note::
-
-        When called, return a compiled version of this function with ``lazy_kwargs``
-        passed to :func:`numba.guvectorize`.
-        Typehints are from the compiled function point of view.
-
-        """
-        generate_gufunc.__doc__ = "\n".join(wrap_doc.splitlines() + lines[1:])
-
-        return generate_gufunc
-
-    return decorator
 
 
 class Dispatcher:

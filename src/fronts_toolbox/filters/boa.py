@@ -5,12 +5,12 @@ Based on Belkin & O'Reilly 2009, Journal of Marine Systems 78.
 
 from __future__ import annotations
 
-from collections.abc import Collection, Hashable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, TypeVar
+from collections.abc import Collection, Hashable, Sequence
+from typing import TYPE_CHECKING, TypeVar
 
 import numba.types as nt
 import numpy as np
-from numba import jit, prange
+from numba import guvectorize, jit, prange
 
 from fronts_toolbox.util import (
     Dispatcher,
@@ -18,7 +18,6 @@ from fronts_toolbox.util import (
     dims_help,
     doc,
     get_axes_kwarg,
-    guvectorize_lazy,
     ufunc_kwargs_help,
 )
 
@@ -42,7 +41,6 @@ _doc = dict(
     input_field="Array to filter.",
     iterations="Number of iterations to apply.",
     axes=axes_help,
-    gufunc="Arguments passed to :func:`numba.guvectorize`.",
     kwargs=ufunc_kwargs_help,
 )
 
@@ -52,18 +50,15 @@ def boa_numpy(
     input_field: np.ndarray[_Size, _DT],
     iterations: int = 1,
     axes: Sequence[int] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> np.ndarray[_Size, _DT]:
     """Apply BOA filter."""
-    func = boa_core(gufunc)
-
     if axes is not None:
-        kwargs["axes"] = get_axes_kwarg(func.signature, axes)
+        kwargs["axes"] = get_axes_kwarg(boa_core.signature, axes)
 
     output = input_field.copy()
     for _ in range(iterations):
-        output = func(output, **kwargs)
+        output = boa_core(output, **kwargs)
 
     return output
 
@@ -73,23 +68,20 @@ def boa_dask(
     input_field: dask.array.Array,
     iterations: int = 1,
     axes: Sequence[int] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> dask.array.Array:
     """Apply BOA filter."""
     import dask.array as da
 
-    func = boa_core(gufunc)
-
     if axes is None:
         axes = [-2, -1]
     axes = [range(input_field.ndim)[i] for i in axes]
-    kwargs["axes"] = get_axes_kwarg(func.signature, axes)
+    kwargs["axes"] = get_axes_kwarg(boa_core.signature, axes)
 
     output = input_field.copy()
     for _ in range(iterations):
         output = da.map_overlap(
-            func,
+            boa_core,
             output,
             # overlap
             depth={axes[0]: 2, axes[1]: 2},
@@ -111,7 +103,6 @@ def boa_xarray(
     input_field: xarray.DataArray,
     iterations: int = 1,
     dims: Collection[Hashable] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> xarray.DataArray:
     """Apply BOA filter."""
@@ -124,9 +115,7 @@ def boa_xarray(
     axes = input_field.get_axis_num(dims)
 
     func = boa_dispatcher.get_func(input_field.data)
-    filtered = func(
-        input_field.data, iterations=iterations, axes=axes, gufunc=gufunc, **kwargs
-    )
+    filtered = func(input_field.data, iterations=iterations, axes=axes, **kwargs)
     output = xr.DataArray(filtered, name=input_field.name, coords=input_field.coords)
     return output
 
@@ -283,7 +272,7 @@ def apply_cmf3(
         output[center_y, center_x] = np.median(window)
 
 
-@guvectorize_lazy(
+@guvectorize(
     [
         (nt.float32[:, :], nt.float32[:, :]),
         (nt.float64[:, :], nt.float64[:, :]),

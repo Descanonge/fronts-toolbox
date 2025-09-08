@@ -36,7 +36,7 @@ is not a Mapping.
 
 def median_filter_core(
     input_field: np.ndarray[_Size, _DT],
-    size: Sequence[int],
+    window_size: Sequence[int],
     mode: str,
     cval: float,
     **kwargs,
@@ -57,8 +57,10 @@ def median_filter_core(
         and mode == "constant"
         and cval == 0.0
     ):
-        return apply_vectorized(medfilt2d, input_field, kernel_size=size, **kwargs)
-    return median_filter(input_field, size=size, mode=mode, cval=cval, **kwargs)
+        return apply_vectorized(
+            medfilt2d, input_field, kernel_size=window_size, **kwargs
+        )
+    return median_filter(input_field, size=window_size, mode=mode, cval=cval, **kwargs)
 
 
 _doc = dict(
@@ -95,6 +97,7 @@ _doc = dict(
     Arguments passed to either :func:`~scipy.signal.medfilt2d` or
     :func:`~scipy.ndimage.median_filter`.
     """,
+    returns="Filtered array.",
 )
 
 
@@ -116,7 +119,7 @@ def median_filter_numpy(
         window_size = [window_size, window_size]
 
     return median_filter_core(
-        input_field, size=window_size, mode=mode, cval=cval, axes=axes, **kwargs
+        input_field, window_size=window_size, mode=mode, cval=cval, axes=axes, **kwargs
     )
 
 

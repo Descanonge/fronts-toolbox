@@ -85,7 +85,6 @@ _components_doc = dict(
     If non-zero, shift the leftmost and rightmost edges of the bins by this amount to
     avoid artefacts caused by the discretization of the input field data.""",
     axes=axes_help,
-    gufunc="Arguments passed to :func:`numba.guvectorize`.",
     kwargs=ufunc_kwargs_help,
     returns="Tuple of components, in the order of :attr:`COMPONENTS_NAMES`.",
 )
@@ -98,7 +97,6 @@ def components_numpy(
     bins_width: float = 0.1,
     bins_shift: float = 0.0,
     axes: Sequence[int] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> tuple[_ArrayType, _ArrayType, _ArrayType]:
     """Compute components from a Numpy array."""
@@ -111,8 +109,7 @@ def components_numpy(
         # (y,x),(c),(w),(),()->(y,x,c)
         kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, input_field.ndim)]
 
-    func = components_core(gufunc)
-    output = func(
+    output = components_core(
         input_field,
         list(range(3)),  # dummy argument of size 3, needed to accomadate dask
         window_reach,
@@ -135,7 +132,6 @@ def components_dask(
     bins_width: float = 0.1,
     bins_shift: float = 0.0,
     axes: Sequence[int] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
     **kwargs,
 ) -> tuple[dask.array.Array, dask.array.Array, dask.array.Array]:
     """Compute components from Dask array."""
@@ -212,7 +208,6 @@ def components_xarray(
     bins_width: float = 0.1,
     bins_shift: float | bool = True,
     dims: Collection[Hashable] | None = None,
-    gufunc: Mapping[str, Any] | None = None,
 ) -> xarray.Dataset:
     """Compute components from Xarray data."""
     import xarray as xr
@@ -247,7 +242,6 @@ def components_xarray(
         bins_width=bins_width,
         bins_shift=bins_shift,
         axes=axes,
-        gufunc=gufunc,
     )
 
     # Attribute common to all variable (and also global attributes)
