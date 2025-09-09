@@ -157,7 +157,7 @@ def median_filter_dask(
         # kwargs
         mode=mode,
         cval=cval,
-        size=window_size,
+        window_size=window_size,
         axes=axes,
         **kwargs,
     )
