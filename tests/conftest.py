@@ -7,8 +7,6 @@ from numpy.typing import NDArray
 
 from fronts_toolbox._fields import sample
 
-xr.set_options(use_new_combine_kwarg_defaults=True)
-
 
 @pytest.fixture
 def sst_xarray_dask() -> xr.DataArray:
