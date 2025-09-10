@@ -149,7 +149,9 @@ def cmf_xarray(
 
     axes = sorted(input_field.get_axis_num(dims))
     func = cmf_mapper.get_func(input_field.data)
-    output = func(input_field.data, size=window_size, iterations=iterations, axes=axes)
+    output = func(
+        input_field.data, window_size=window_size, iterations=iterations, axes=axes
+    )
 
     arr = xr.DataArray(
         data=output,
