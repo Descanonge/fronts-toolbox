@@ -7,6 +7,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/Descanonge/fronts-toolbox)](https://github.com/Descanonge/fronts-toolbox/releases)
 [![test status](https://github.com/Descanonge/fronts-toolbox/actions/workflows/tests.yml/badge.svg)](https://github.com/Descanonge/fronts-toolbox/actions)
 [![Documentation Status](https://readthedocs.org/projects/fronts-toolbox/badge/?version=latest)](https://fronts-toolbox.readthedocs.io/en/latest/?badge=latest)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Descanonge/fronts-toolbox/main)
 
 </div>
 

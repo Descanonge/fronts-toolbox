@@ -6,11 +6,7 @@
 import sys
 from pathlib import Path
 
-import xarray
-
 import fronts_toolbox
-
-xarray.set_options(use_new_combine_kwarg_defaults=True)
 
 sys.path.append(str(Path("extensions").resolve()))
 
@@ -81,6 +77,14 @@ intersphinx_mapping = {
 
 ## nbsphinx config
 nbsphinx_execute = "always"
+nbsphinx_prolog = r"""
+{% set docname = env.doc2path(env.docname, base=None) | string %}
+
+You can run this notebook in a `live session via Binder
+<https://mybinder.org/v2/gh/Descanonge/fronts-toolbox/main?urlpath=docs/{{ docname }}>`_
+or view it `on Github
+<https://github.com/Descanonge/fronts-toolbox/blob/main/docs/{{ docname }}>`_.
+"""
 
 ## Options for HTML output
 
@@ -95,9 +99,8 @@ html_theme_options = dict(
     show_toc_level=2,
     collapse_navigation=False,
     # Navigation bar
-    navbar_start=["navbar-logo", "navbar-icon-links"],
+    navbar_start=["navbar-logo"],
     navbar_center=["navbar-nav"],
-    navbar_end=["search-button"],
     # Footer
     show_prev_next=False,
     article_footer_items=[],
