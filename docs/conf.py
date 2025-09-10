@@ -6,7 +6,11 @@
 import sys
 from pathlib import Path
 
+import xarray
+
 import fronts_toolbox
+
+xarray.set_options(use_new_combine_kwarg_defaults=True)
 
 sys.path.append(str(Path("extensions").resolve()))
 
