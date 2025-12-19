@@ -59,7 +59,7 @@ two thresholds given by the user.
    If ``use_quantiles=True``, the given values are taken as the quantiles of the
    image gradient magnitude.
 
-Strong edges are all kept. Weak edges are kept only if the are recursively
+Strong edges are all kept. Weak edges are kept only if they are recursively
 8-connected to a strong edge. Meaning any weak edge that has a strong edge in at
 least one of its 8 closest neighbors is kept and now-considered as a strong edge
 (so weak edges connected to it will be kept as well etc.).

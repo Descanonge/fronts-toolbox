@@ -67,7 +67,7 @@ Finally, to bound somewhat the range of HI values, we apply a final coefficient
 
 .. math::
 
-   HI = d \left( aσ + bγ + dB \right)
+   HI = d \left( aσ + bγ + cB \right)
 
 
 .. _bins-shift:
@@ -81,12 +81,12 @@ For some datasets, the SST might be stored compressed with linear-packing.
 
    Very simply, instead of storing a variable in a 32 bits float, because we
    know the range of that variable (let's say the values lie between 0 and 100),
-   we store it on a smaller variable such as a 16 bits integer (SHORT) or even 8
-   bits integer (BYTE). Let's simplify and take an unsigned type. The integer
-   values will lie between 0 and :math:`2^{16}-1 \approx 65 535` for a USHORT.
-   By multiplying those integer values by some factor we can obtain the range we
-   want for our variable. Here a factor of 0.00153 will give a maximum value
-   slightly above 100.
+   we store it on a smaller variable type such as a 16 bits integer (SHORT) or
+   even 8 bits integer (BYTE). Let's simplify and take an unsigned type. The
+   integer values will lie between 0 and :math:`2^{16}-1 = 65 535` for a
+   USHORT. By multiplying those integer values by some factor we can obtain the
+   range we want for our variable. Here a factor of 0.00153 will give a maximum
+   value slightly above 100.
 
    We end up with float values between 0 and 100 and a discretization interval
    equal to the scale factor (here 0.00153).

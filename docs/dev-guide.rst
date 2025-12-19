@@ -20,7 +20,8 @@ than the mandatory dependencies (numpy and numba). This means the user can do
 Input types and requirements
 ============================
 
-This library aims to facilitate implementing different types of input arrays:
+This library aims to facilitate implementing algorithms for different types of
+input arrays:
 
 - Numpy,
 - Dask,
@@ -68,9 +69,9 @@ the input to the correct function, you can define a :class:`.util.Dispatcher`::
 
 .. note::
 
-    Not all mappers need to contain an implementation for every possible type.
-    The mapper will give appropriate an message error if an input type is
-    unsupported, or if the needed library is not installed.
+    Not all dispatchers need to contain an implementation for every possible
+    type. The dispatcher will give appropriate an message error if an input type
+    is unsupported, or if the needed library is not installed.
 
 Documentation
 -------------
@@ -93,7 +94,7 @@ keyword arguments for the decorator::
     param1="Help for the first parameter",
     param1_type="The typehint for 'param1', this is optional"
     param2="Help for the second parameter",
-    axes=axes_help,
+    axes=util.axes_help,
   )
 
   @doc(_doc)
@@ -105,7 +106,7 @@ keyword arguments for the decorator::
     remove=["axes"],  # axes is not used in this function
     param1="The help should change slightly for this parameter",
     rtype="The return type is different",
-    dims=dims_help,
+    dims=util.dims_help,
   )
   def my_second_function(param1, param2, dims):
     ...
@@ -119,8 +120,8 @@ Generalized functions
 =====================
 
 Front detection algorithms and filters will typically work on a 2D image, but
-it is useful to accomodate additional dimensions (like time for instance).
-This necessites dealing with looping over those dimensions and specifying axes
+it is useful to accommodate additional dimensions (like time for instance).
+This necessitates dealing with looping over those dimensions and specifying axes
 placement.
 
 For Numpy, if you intend to compile your function with Numba, using
@@ -156,7 +157,7 @@ easily scale on large datasets. Please write your core function to avoid pure
 python loops, or alternatively compile your core function with `Numba
 <https://numba.pydata.org/>`__.
 
-Uing :external+numba:func:`numba.guvectorize` allows to easily create a
+Using :external+numba:func:`numba.guvectorize` allows to easily create a
 generalized universal function. This ensures that your computations will be
 properly vectorized and that it deals nicely with broadcasting and type
 conversion.
@@ -168,17 +169,18 @@ I tried to defer fetching the cache at call time, but this failed to be pickled
 correctly when using dask.distributed.
 
 Fonctions compiled with numba.guvectorize only accept positional arguments, but
-(as I understand it) Dask treats positional arguments as chunked data. Use this
-wrapper to transform kwargs into positional arguments: Dask will see keyword
-arguments, but the fonction will receive positional arguments.
+(as I understand it) Dask treats positional arguments as chunked data. Use the
+:class:`.util.KwargsWrap` wrapper to transform kwargs into positional arguments:
+Dask will see keyword arguments, but the fonction will receive positional
+arguments.
 
 Moving window size
 ==================
 
 Multiple algorithms use a moving window. The user will provide the window
-**size**: the number of pixels along its sides. A window of size 3x3 will
-contains 9 pixels. Please allow the user to input the window size as described
-in :ref:`window_size_user`.
+**size**: the number of pixels along its sides. A window of size 3x3 contains 9
+pixels. Please allow the user to input the window size as described in
+:ref:`window_size_user`.
 
 In the implementation, it is often easier to loop over half the window size
 (from the central pixel). This package provides :func:`.util.get_window_reach`
@@ -189,7 +191,7 @@ window of size 3 has a reach of 1, a window of size 5 a reach of 2, etc.
 Axes management
 ===============
 
-It is probable you need to give your function the indices of core axes it must
+You will probably need to give your functions the indices of core axes it must
 work onto (typically the axes corresponding to latitude and longitude). When
 working with generalized universal function you will need to specify the axes
 indices to the gufunc via the "axes" keyword argument, whose syntax is not the
@@ -199,7 +201,7 @@ I suggest here to simplify things for the user. They only have to supply a
 sequence of indices (or of dimensions for xarray) which is then is accommodated
 to the gufunc. The function :func:`.util.get_axes_kwarg` will automatically try
 to do that from a given signature. For instance if the core axes are specified
-as ``y,x``::
+as ``y,x``:
 
 .. tab-set::
 
@@ -217,7 +219,7 @@ as ``y,x``::
                         None (default), the last two axes are used.
                 """
                 if axes is not None:
-                    kwargs["axes"] = get_axes_kwarg(function.signature, "y,x")
+                    kwargs["axes"] = get_axes_kwarg(function.signature, axes, "y,x")
 
                 # kwargs is then passed to the compiled gufunc
 
@@ -236,7 +238,7 @@ as ``y,x``::
                 dims:
                     Names of the dimensions along which to compute the index. Order
                     is irrelevant, no reordering will be made between the two
-                    dimensions. If not specified, is taken by module-wide variable
+                    dimensions. If not specified, is taken as module-wide variable
                     :data:`DEFAULT_DIMS` which defaults to ``{'lat', 'lon'}``.
                 """
                 if dims is None:
@@ -273,7 +275,7 @@ Testing and benchmark
 Added functions must be tested. Define new test functions in ``tests/...``.
 Those tests only check if the function executes for different kinds of input, as
 well as the output metadata. They do not test for correctness, though you are
-welcome to write more advanced test if your algorithm allows it.
+welcome to write more advanced tests if your algorithm allows it.
 
 To check the actual output of your function, please add a jupyter notebook to
 the documentation in ``doc/gallery/``. The notebook is here to showcase the

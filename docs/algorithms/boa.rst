@@ -49,7 +49,7 @@ Other implementations
 +----------+--------------------+----------------------------------------------+
 |          |      Language      | Notes                                        |
 +----------+--------------------+----------------------------------------------+
-| boar_    | Pure Python        |                                              |
+| boar_    | R                  |                                              |
 +----------+--------------------+----------------------------------------------+
 | pyBOA_   | Pure Python        | This is pure Python but is written in a way  |
 |          | (Xarray)           | that should prove efficient                  |

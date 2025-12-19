@@ -324,7 +324,7 @@ two axes are used."""
 dims_help = """\
 Names of the dimensions along which to apply the algorithm. Order is irrelevant, no
 reordering will be made between the two dimensions. If the `window_size` argument is
-given as a mapping, its keys are used instead. If not specified, is taken by module-wide
+given as a mapping, its keys are used instead. If not specified, is taken as module-wide
 variable :data:`DEFAULT_DIMS` which defaults to ``{'lat', 'lon'}``."""
 """Help string for the recurring 'dims' argument."""
 ufunc_kwargs_help = """\

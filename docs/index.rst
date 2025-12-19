@@ -17,9 +17,9 @@ for Cuda array could be added if necessary.
 
 The goal of this package is to provide various methods in such a way that they
 can be easily read and modified by researchers. In that regard, Numba allows to
-write directly in Python and retain access to a lot of function from Numpy and
-Scipy. This packages provides a common framework to easily add other algorithms,
-while benefiting from testing and documentation.
+write directly in Python and retain access to a lot of functions from Numpy and
+Scipy. This package provides a common framework to easily add other algorithms,
+while benefiting from automatic testing and documentation.
 
 .. grid:: 1 1 3 4
 
@@ -63,8 +63,9 @@ Testing
 Testing these various front-detection algorithms automatically is not
 straightforward. Only basic automatic tests are run: the functions terminate
 without crashing, the output is the correct type and shape, the output is not
-all invalid. Checking the correctness of the methods is left to the user. A
-gallery is automatically constructed and allows to visually check the methods.
+all invalid. Checking the correctness of the methods is left to the user. The
+documentation includes a gallery that is automatically constructed and allows to
+visually check the methods.
 
 Checking the results is especially important when dealing with Dask and chunked
 core dimensions.
