@@ -244,7 +244,7 @@ as ``y,x``:
                 if dims is None:
                     dims = DEFAULT_DIMS
 
-                axes = [d for d in input_field.dims if d in dims]
+                axes = sorted(input_field.get_axis_num(dims))
 
                 # axes can then be passed to the Numpy or Dask function
 

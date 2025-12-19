@@ -238,6 +238,7 @@ def cayula_cornillon_xarray(
     window_size_seq = [window_size[d] for d in dims]
     window_step_seq = [window_step[d] for d in dims]
     # dimensions indices to send to subfunctions
+    # dims is already sorted by get_dims_and_window_size
     axes = input_field.get_axis_num(dims)
 
     # I don't use xr.apply_ufunc because the dask function is quite complex
