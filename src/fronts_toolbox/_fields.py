@@ -183,11 +183,13 @@ def add_noise(field: NDArray, amplitude: float = 1e-2) -> NDArray:
 if has_pooch:
     REGISTRY = pooch.create(
         path=pooch.os_cache("fronts-toolbox"),
-        base_url="doi:10.5281/zenodo.15769617",
-        registry=None,
+        base_url="https://zenodo.org/records/15774600/files",
+        registry={
+            "ESA-CCI-C3S.zip": "md5:dd4283a125cbc691de87a1f77bc04ff7",
+            "MODIS.zip": "md5:c1a31f032879e71aa39372b56fd3ddd4",
+        },
     )
     """File registry of data samples."""
-    REGISTRY.load_registry_from_doi()
 
 
 def sample(name: str) -> Dataset:
