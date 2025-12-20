@@ -37,6 +37,7 @@ docs = [
     'nbsphinx',
     'jupyterlab',
     'ipykernel',
+    'matplotlib',
 ]
 tests = [
     'pytest>=7.4',
