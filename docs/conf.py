@@ -81,7 +81,7 @@ nbsphinx_prolog = r"""
 {% set docname = env.doc2path(env.docname, base=None) | string %}
 
 You can run this notebook in a `live session via Binder
-<https://mybinder.org/v2/gh/Descanonge/fronts-toolbox/main?urlpath=docs/{{ docname }}>`_
+<https://mybinder.org/v2/gh/Descanonge/fronts-toolbox/main?urlpath=lab/tree/docs/{{ docname }}>`_
 or view it `on Github
 <https://github.com/Descanonge/fronts-toolbox/blob/main/docs/{{ docname }}>`_.
 """
