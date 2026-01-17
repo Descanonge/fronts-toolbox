@@ -5,12 +5,11 @@ from __future__ import annotations
 import importlib.util
 import logging
 from collections.abc import Callable, Collection, Hashable, Mapping, Sequence
-from functools import lru_cache, wraps
+from functools import lru_cache
 from textwrap import dedent, indent
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
-from numba import guvectorize
 
 if TYPE_CHECKING:
     from dask.array import Array as DaskArray
