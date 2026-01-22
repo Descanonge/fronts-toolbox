@@ -279,7 +279,7 @@ def apply_cmf3(
     ],
     "(y,x)->(y,x)",
     nopython=True,
-    cache=True,
+    cache=False,
     target="cpu",
 )
 def boa_core(

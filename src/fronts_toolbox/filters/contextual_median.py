@@ -179,7 +179,7 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
     "(y,x),()->(y,x)",
     nopython=True,
     target="cpu",
-    cache=True,
+    cache=False,
 )
 def cmf_core(
     field: np.ndarray[tuple[int, ...], _DT],

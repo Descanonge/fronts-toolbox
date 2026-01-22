@@ -383,7 +383,7 @@ def get_components_from_values(
     ],
     "(y,x),(c),(w),(),()->(y,x,c)",
     nopython=True,
-    cache=True,
+    cache=False,
     target="cpu",
 )
 def components_core(

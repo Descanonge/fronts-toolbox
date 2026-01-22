@@ -531,7 +531,7 @@ def get_edges(
     "(y,x),(w),(w),(),(),()->(y,x)",
     nopython=True,
     target="cpu",
-    cache=True,
+    cache=False,
 )
 def cayula_cornillon_core(
     field: np.ndarray[tuple[int, int], np.dtype[np.float32]]
