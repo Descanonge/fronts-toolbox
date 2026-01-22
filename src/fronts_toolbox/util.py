@@ -135,6 +135,18 @@ class KwargsWrap:
         return self.func(*call, **kwargs)
 
 
+def is_chunked_core(input_field: DaskArray, axes: Sequence[int]) -> bool:
+    """Return whether the array is chunked along the core dimensions.
+
+    :param axes: Indices of the core dimensions of the computation.
+    """
+    return any(
+        d != input_field.shape[i]
+        for i, d in enumerate(input_field.chunksize)
+        if i in axes
+    )
+
+
 def get_axes_kwarg(
     signature: str, axes: Sequence[int], order: str = "y,x"
 ) -> list[tuple[int, ...]]:

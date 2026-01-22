@@ -23,6 +23,7 @@ from fronts_toolbox.util import (
     dims_help,
     doc,
     get_axes_kwarg,
+    is_chunked_core,
     ufunc_kwargs_help,
 )
 
@@ -98,25 +99,27 @@ def cmf_dask(
     kwargs["axes"] = get_axes_kwarg(cmf_core.signature, axes, "y,x")
 
     depth = {axes[0]: reach, axes[1]: reach}
+    do_overlap = is_chunked_core(input_field, axes)
 
     wrap = KwargsWrap(cmf_core, ["window_reach"])
 
     output = input_field
     for _ in range(iterations):
-        output = da.map_overlap(
+        if do_overlap:
+            output = da.overlap.overlap(output, depth=depth, boundary="none")
+        output = da.map_blocks(
             wrap,
             output,
-            # overlap
-            depth=depth,
-            boundary="none",
+            name=wrap.name,
             # output
             dtype=input_field.dtype,
             meta=np.array((), dtype=input_field.dtype),
-            name=wrap.name,
             # kwargs
             window_reach=reach,
             **kwargs,
         )
+        if do_overlap:
+            output = da.overlap.trim_internal(output, depth)
 
     return output
 

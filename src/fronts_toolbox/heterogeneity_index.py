@@ -41,6 +41,7 @@ from fronts_toolbox.util import (
     doc,
     get_dims_and_window_size,
     get_window_reach,
+    is_chunked_core,
     is_dataarray,
     is_dataset,
     ufunc_kwargs_help,
@@ -151,7 +152,12 @@ def components_dask(
     kwargs["axes"] = [tuple(axes), (0), (0), (), (), (*axes, ndim)]
 
     depth = {axes[0]: window_reach_y, axes[1]: window_reach_x}
-    overlap = da.overlap.overlap(input_field, depth=depth, boundary="none")
+    do_overlap = is_chunked_core(input_field, axes)
+
+    if do_overlap:
+        overlap = da.overlap.overlap(input_field, depth=depth, boundary="none")
+    else:
+        overlap = input_field
 
     wrap = KwargsWrap(
         components_core, ["dummy", "window_reach", "bins_width", "bins_shift"]
@@ -171,7 +177,9 @@ def components_dask(
         bins_shift=bins_shift,
         **kwargs,
     )
-    output = da.overlap.trim_internal(output, depth)
+
+    if do_overlap:
+        output = da.overlap.trim_internal(output, depth)
 
     stdev = output[..., 0]
     skew = output[..., 1]
