@@ -173,7 +173,7 @@ _DT = TypeVar("_DT", bound=np.dtype[np.float32] | np.dtype[np.float64])
 
 @guvectorize(
     [
-        (nt.float32[:, :], nt.intp, nt.float32[:, :]),
+        (nt.float32[:, :], nt.intp, nt.float64[:, :]),
         (nt.float64[:, :], nt.intp, nt.float64[:, :]),
     ],
     "(y,x),()->(y,x)",
