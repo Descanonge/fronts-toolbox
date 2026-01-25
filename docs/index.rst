@@ -51,7 +51,11 @@ while benefiting from automatic testing and documentation.
 Install
 =======
 
-Soon on PyPI. For now install from source::
+From PyPI::
+
+  pip install fronts-toolbox
+
+From source::
 
    git clone https://github.com/Descanonge/fronts-toolbox
    cd fronts-toolbox

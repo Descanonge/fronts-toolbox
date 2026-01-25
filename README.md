@@ -4,6 +4,7 @@
 
 <div align="left">
 
+[![PyPI](https://img.shields.io/pypi/v/fronts-toolbox)](https://pypi.org/project/fronts-toolbox)
 [![GitHub release](https://img.shields.io/github/v/release/Descanonge/fronts-toolbox)](https://github.com/Descanonge/fronts-toolbox/releases)
 [![test status](https://github.com/Descanonge/fronts-toolbox/actions/workflows/tests.yml/badge.svg)](https://github.com/Descanonge/fronts-toolbox/actions)
 [![Documentation Status](https://readthedocs.org/projects/fronts-toolbox/badge/?version=latest)](https://fronts-toolbox.readthedocs.io/en/latest/?badge=latest)
@@ -23,7 +24,12 @@ Documentation available at https://fronts-toolbox.readthedocs.io, with descripti
 
 ## Installation
 
-Soon on PyPI. For now install from source:
+From PyPI:
+``` shell
+pip install fronts-toolbox
+```
+
+From source:
 ``` shell
 git clone https://github.com/Descanonge/fronts-toolbox.git
 cd fronts-toolbox
